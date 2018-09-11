@@ -1624,6 +1624,7 @@ static int build_environment(
 
         assert(u);
         assert(c);
+        assert(p);
         assert(ret);
 
         our_env = new0(char*, 14);

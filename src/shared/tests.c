@@ -44,12 +44,6 @@ static void load_testdata_env(void) {
                 setenv(*k, *v, 0);
 }
 
-bool test_is_running_from_builddir(char **exedir) {
-        load_testdata_env();
-
-        return !!getenv("SYSTEMD_TEST_DATA");
-}
-
 const char* get_testdata_dir(void) {
         const char *env;
 
@@ -71,4 +65,20 @@ void test_setup_logging(int level) {
         log_set_max_level(level);
         log_parse_environment();
         log_open();
+}
+
+const char* get_catalog_dir(void) {
+        const char *env;
+
+        load_testdata_env();
+
+        /* if the env var is set, use that */
+        env = getenv("SYSTEMD_CATALOG_DIR");
+        if (!env)
+                env = SYSTEMD_CATALOG_DIR;
+        if (access(env, F_OK) < 0) {
+                fprintf(stderr, "ERROR: $SYSTEMD_CATALOG_DIR directory [%s] does not exist\n", env);
+                exit(EXIT_FAILURE);
+        }
+        return env;
 }

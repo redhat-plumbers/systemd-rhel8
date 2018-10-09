@@ -1665,11 +1665,11 @@ int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
         /* Release any dynamic users no longer referenced */
         dynamic_user_vacuum(m, true);
 
-        exec_runtime_vacuum(m);
-
         /* Release any references to UIDs/GIDs no longer referenced, and destroy any IPC owned by them */
         manager_vacuum_uid_refs(m);
         manager_vacuum_gid_refs(m);
+
+        exec_runtime_vacuum(m);
 
         if (serialization) {
                 assert(m->n_reloading > 0);
@@ -1680,6 +1680,13 @@ int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
                  * finished */
                 m->send_reloading_done = true;
         }
+
+        /* It might be safe to log to the journal now and connect to dbus */
+        manager_recheck_journal(m);
+        manager_recheck_dbus(m);
+
+        /* Sync current state of bus names with our set of listening units */
+        (void) manager_enqueue_sync_bus_names(m);
 
         /* Let's finally catch up with any changes that took place while we were reloading/reexecing */
         manager_catchup(m);
@@ -3505,7 +3512,8 @@ int manager_reload(Manager *m) {
         lookup_paths_reduce(&m->lookup_paths);
         manager_build_unit_path_cache(m);
 
-        /* First, enumerate what we can from all config files */
+        /* First, enumerate what we can from kernel and suchlike */
+        manager_enumerate_perpetual(m);
         manager_enumerate(m);
 
         /* Second, deserialize our stored data */

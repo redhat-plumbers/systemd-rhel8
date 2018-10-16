@@ -24,6 +24,7 @@ static void log_and_status(Manager *m, const char *message, const char *reason) 
 int emergency_action(
                 Manager *m,
                 EmergencyAction action,
+                EmergencyActionFlags options,
                 const char *reboot_arg,
                 const char *reason) {
 
@@ -34,7 +35,7 @@ int emergency_action(
         if (action == EMERGENCY_ACTION_NONE)
                 return -ECANCELED;
 
-        if (!m->service_watchdogs) {
+        if (FLAGS_SET(options, EMERGENCY_ACTION_IS_WATCHDOG) && !m->service_watchdogs) {
                 log_warning("Watchdog disabled! Not acting on: %s", reason);
                 return -ECANCELED;
         }

@@ -1660,8 +1660,8 @@ static int unit_create_cgroup(
                 bool needs_bpf) {
 
         CGroupContext *c;
-        int r;
         bool created;
+        int r;
 
         assert(u);
 
@@ -1685,18 +1685,37 @@ static int unit_create_cgroup(
 
         /* Preserve enabled controllers in delegated units, adjust others. */
         if (created || !unit_cgroup_delegate(u)) {
+                CGroupMask result_mask = 0;
 
                 /* Enable all controllers we need */
-                r = cg_enable_everywhere(u->manager->cgroup_supported, enable_mask, u->cgroup_path);
+                r = cg_enable_everywhere(u->manager->cgroup_supported, enable_mask, u->cgroup_path, &result_mask);
                 if (r < 0)
-                        log_unit_warning_errno(u, r, "Failed to enable controllers on cgroup %s, ignoring: %m",
-                                               u->cgroup_path);
+                        log_unit_warning_errno(u, r, "Failed to enable/disable controllers on cgroup %s, ignoring: %m", u->cgroup_path);
+
+                /* If we just turned off a controller, this might release the controller for our parent too, let's
+                 * enqueue the parent for re-realization in that case again. */
+                if (UNIT_ISSET(u->slice)) {
+                        CGroupMask turned_off;
+
+                        turned_off = (u->cgroup_realized ? u->cgroup_enabled_mask & ~result_mask : 0);
+                        if (turned_off != 0) {
+                                Unit *parent;
+
+                                /* Force the parent to propagate the enable mask to the kernel again, by invalidating
+                                 * the controller we just turned off. */
+
+                                for (parent = UNIT_DEREF(u->slice); parent; parent = UNIT_DEREF(parent->slice))
+                                        unit_invalidate_cgroup(parent, turned_off);
+                        }
+                }
+
+                /* Remember what's actually enabled now */
+                u->cgroup_enabled_mask = result_mask;
         }
 
         /* Keep track that this is now realized */
         u->cgroup_realized = true;
         u->cgroup_realized_mask = target_mask;
-        u->cgroup_enabled_mask = enable_mask;
         u->cgroup_bpf_state = needs_bpf ? UNIT_CGROUP_BPF_ON : UNIT_CGROUP_BPF_OFF;
 
         if (u->type != UNIT_SLICE && !unit_cgroup_delegate(u)) {
@@ -1885,7 +1904,7 @@ static bool unit_has_mask_realized(
                  (!needs_bpf && u->cgroup_bpf_state == UNIT_CGROUP_BPF_OFF));
 }
 
-static void unit_add_to_cgroup_realize_queue(Unit *u) {
+void unit_add_to_cgroup_realize_queue(Unit *u) {
         assert(u);
 
         if (u->in_cgroup_realize_queue)

@@ -181,6 +181,7 @@ CGroupMask unit_get_enable_mask(Unit *u);
 
 bool unit_get_needs_bpf(Unit *u);
 
+void unit_invalidate_cgroup_members_masks(Unit *u);
 void unit_update_cgroup_members_masks(Unit *u);
 
 const char *unit_get_realized_cgroup_path(Unit *u, CGroupMask mask);

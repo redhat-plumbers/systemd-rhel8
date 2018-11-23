@@ -265,7 +265,6 @@ typedef struct Unit {
         char *cgroup_path;
         CGroupMask cgroup_realized_mask;
         CGroupMask cgroup_enabled_mask;
-        CGroupMask cgroup_subtree_mask;
         CGroupMask cgroup_members_mask;
         int cgroup_inotify_wd;
 
@@ -341,7 +340,6 @@ typedef struct Unit {
 
         bool cgroup_realized:1;
         bool cgroup_members_mask_valid:1;
-        bool cgroup_subtree_mask_valid:1;
 
         UnitCGroupBPFState cgroup_bpf_state:2;
 

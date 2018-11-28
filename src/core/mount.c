@@ -1560,16 +1560,21 @@ static int mount_setup_existing_unit(
                 u->load_state = UNIT_LOADED;
                 u->load_error = 0;
 
-                /* Load in the extras later on, after we
-                 * finished initialization of the unit */
-
-                /* FIXME: since we're going to load the unit later on, why setting load_extras=true ? */
-                load_extras = true;
                 flags->just_changed = true;
         }
 
         if (load_extras)
                 return mount_add_non_exec_dependencies(MOUNT(u));
+        if (flags->just_changed) {
+                /* If things changed, then make sure that all deps are regenerated. Let's
+                 * first remove all automatic deps, and then add in the new ones. */
+
+                unit_remove_dependencies(u, UNIT_DEPENDENCY_MOUNTINFO_IMPLICIT);
+
+                r = mount_add_extras(MOUNT(u));
+                if (r < 0)
+                        return r;
+        }
 
         return 0;
 }

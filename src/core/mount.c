@@ -1872,7 +1872,7 @@ static int drain_libmount(Manager *m) {
 }
 
 static int mount_process_proc_self_mountinfo(Manager *m) {
-        _cleanup_set_free_ Set *around = NULL, *gone = NULL;
+        _cleanup_set_free_free_ Set *around = NULL, *gone = NULL;
         const char *what;
         Iterator i;
         Unit *u;
@@ -1912,7 +1912,7 @@ static int mount_process_proc_self_mountinfo(Manager *m) {
 
                                 /* Remember that this device might just have disappeared */
                                 if (set_ensure_allocated(&gone, &path_hash_ops) < 0 ||
-                                    set_put(gone, mount->parameters_proc_self_mountinfo.what) < 0)
+                                    set_put_strdup(gone, mount->parameters_proc_self_mountinfo.what) < 0)
                                         log_oom(); /* we don't care too much about OOM here... */
                         }
 
@@ -1965,9 +1965,10 @@ static int mount_process_proc_self_mountinfo(Manager *m) {
                 if (mount_is_mounted(mount) &&
                     mount->from_proc_self_mountinfo &&
                     mount->parameters_proc_self_mountinfo.what) {
+                        /* Track devices currently used */
 
                         if (set_ensure_allocated(&around, &path_hash_ops) < 0 ||
-                            set_put(around, mount->parameters_proc_self_mountinfo.what) < 0)
+                            set_put_strdup(around, mount->parameters_proc_self_mountinfo.what) < 0)
                                 log_oom();
                 }
 

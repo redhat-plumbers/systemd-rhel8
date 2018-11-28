@@ -1621,7 +1621,6 @@ static int mount_load_proc_self_mountinfo(Manager *m, bool set_flags) {
         if (r < 0)
                 return log_error_errno(r, "Failed to parse /proc/self/mountinfo: %m");
 
-        r = 0;
         for (;;) {
                 struct libmnt_fs *fs;
                 const char *device, *path, *options, *fstype;
@@ -1650,12 +1649,10 @@ static int mount_load_proc_self_mountinfo(Manager *m, bool set_flags) {
 
                 device_found_node(m, d, DEVICE_FOUND_MOUNT, DEVICE_FOUND_MOUNT);
 
-                k = mount_setup_unit(m, d, p, options, fstype, set_flags);
-                if (r == 0 && k < 0)
-                        r = k;
+                (void) mount_setup_unit(m, d, p, options, fstype, set_flags);
         }
 
-        return r;
+        return 0;
 }
 
 static void mount_shutdown(Manager *m) {

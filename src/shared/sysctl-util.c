@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "alloc-util.h"
 #include "fd-util.h"
 #include "fileio.h"
 #include "log.h"
@@ -68,4 +69,28 @@ int sysctl_read(const char *property, char **content) {
 
         p = strjoina("/proc/sys/", property);
         return read_full_file(p, content, NULL);
+}
+
+int sysctl_read_ip_property(int af, const char *ifname, const char *property, char **ret) {
+        _cleanup_free_ char *value = NULL;
+        const char *p;
+        int r;
+
+        assert(IN_SET(af, AF_INET, AF_INET6));
+        assert(property);
+
+        p = strjoina("/proc/sys/net/ipv", af == AF_INET ? "4" : "6",
+                     ifname ? "/conf/" : "", strempty(ifname),
+                     property[0] == '/' ? "" : "/", property);
+
+        r = read_one_line_file(p, &value);
+        if (r < 0)
+                return r;
+
+        if (ret) {
+                *ret = value;
+                value = NULL;
+        }
+
+        return r;
 }

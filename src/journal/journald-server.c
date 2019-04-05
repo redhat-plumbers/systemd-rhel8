@@ -283,13 +283,14 @@ static bool flushed_flag_is_set(void) {
         return access("/run/systemd/journal/flushed", F_OK) >= 0;
 }
 
-static int system_journal_open(Server *s, bool flush_requested) {
+static int system_journal_open(Server *s, bool flush_requested, bool relinquish_requested) {
         const char *fn;
         int r = 0;
 
         if (!s->system_journal &&
             IN_SET(s->storage, STORAGE_PERSISTENT, STORAGE_AUTO) &&
-            (flush_requested || flushed_flag_is_set())) {
+            (flush_requested || flushed_flag_is_set()) &&
+            !relinquish_requested) {
 
                 /* If in auto mode: first try to create the machine
                  * path, but not the prefix.
@@ -331,7 +332,7 @@ static int system_journal_open(Server *s, bool flush_requested) {
 
                 fn = strjoina(s->runtime_storage.path, "/system.journal");
 
-                if (s->system_journal) {
+                if (s->system_journal && !relinquish_requested) {
 
                         /* Try to open the runtime journal, but only
                          * if it already exists, so that we can flush
@@ -386,7 +387,7 @@ static JournalFile* find_journal(Server *s, uid_t uid) {
          * else that's left the journals as NULL).
          *
          * Fixes https://github.com/systemd/systemd/issues/3968 */
-        (void) system_journal_open(s, false);
+        (void) system_journal_open(s, false, false);
 
         /* We split up user logs only on /var, not on /run. If the
          * runtime file is open, we write to it exclusively, in order
@@ -964,7 +965,7 @@ int server_flush_to_var(Server *s, bool require_flag_file) {
         char ts[FORMAT_TIMESPAN_MAX];
         usec_t start;
         unsigned n = 0;
-        int r;
+        int r, k;
 
         assert(s);
 
@@ -977,7 +978,7 @@ int server_flush_to_var(Server *s, bool require_flag_file) {
         if (require_flag_file && !flushed_flag_is_set())
                 return 0;
 
-        (void) system_journal_open(s, true);
+        (void) system_journal_open(s, true, false);
 
         if (!s->system_journal)
                 return 0;
@@ -1055,6 +1056,13 @@ finish:
                                           format_timespan(ts, sizeof(ts), now(CLOCK_MONOTONIC) - start, 0),
                                           n),
                               NULL);
+
+        if (unlink("/run/systemd/journal/relinquished") < 0 && errno != ENOENT)
+                log_warning_errno(errno, "Failed to unlink /run/systemd/journal/relinquished, ignoring: %m");
+
+        k = touch("/run/systemd/journal/flushed");
+        if (k < 0)
+                log_warning_errno(k, "Failed to touch /run/systemd/journal/flushed, ignoring: %m");
 
         return r;
 }
@@ -1180,7 +1188,6 @@ int server_process_datagram(sd_event_source *es, int fd, uint32_t revents, void 
 
 static int dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
         Server *s = userdata;
-        int r;
 
         assert(s);
 
@@ -1189,10 +1196,6 @@ static int dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *
         (void) server_flush_to_var(s, false);
         server_sync(s);
         server_vacuum(s, false);
-
-        r = touch("/run/systemd/journal/flushed");
-        if (r < 0)
-                log_warning_errno(r, "Failed to touch /run/systemd/journal/flushed, ignoring: %m");
 
         server_space_usage_message(s, NULL);
         return 0;
@@ -1250,12 +1253,43 @@ static int dispatch_sigrtmin1(sd_event_source *es, const struct signalfd_siginfo
         return 0;
 }
 
+
+static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
+        Server *s = userdata;
+        int r;
+
+        assert(s);
+
+        if (s->storage == STORAGE_NONE)
+                return 0;
+
+        if (s->runtime_journal && !s->system_journal)
+                return 0;
+
+        log_debug("Received request to relinquish /var from PID " PID_FMT, si->ssi_pid);
+
+        (void) system_journal_open(s, false, true);
+
+        s->system_journal = journal_file_close(s->system_journal);
+        ordered_hashmap_clear_with_destructor(s->user_journals, journal_file_close);
+        set_clear_with_destructor(s->deferred_closes, journal_file_close);
+
+        if (unlink("/run/systemd/journal/flushed") < 0 && errno != ENOENT)
+                log_warning_errno(errno, "Failed to unlink /run/systemd/journal/flushed, ignoring: %m")  ;
+
+        r = write_timestamp_file_atomic("/run/systemd/journal/relinquished", now(CLOCK_MONOTONIC));
+        if (r < 0)
+                log_warning_errno(r, "Failed to write /run/systemd/journal/relinquished, ignoring: %m");
+
+        return 0;
+}
+
 static int setup_signals(Server *s) {
         int r;
 
         assert(s);
 
-        assert_se(sigprocmask_many(SIG_SETMASK, NULL, SIGINT, SIGTERM, SIGUSR1, SIGUSR2, SIGRTMIN+1, -1) >= 0);
+        assert_se(sigprocmask_many(SIG_SETMASK, NULL, SIGINT, SIGTERM, SIGUSR1, SIGUSR2, SIGRTMIN+1, SIGRTMIN+2, -1) >= 0);
 
         r = sd_event_add_signal(s->event, &s->sigusr1_event_source, SIGUSR1, dispatch_sigusr1, s);
         if (r < 0)
@@ -1291,6 +1325,10 @@ static int setup_signals(Server *s) {
          * /run/systemd/journal/synced with inotify until its mtime
          * changes to see when a sync happened. */
         r = sd_event_add_signal(s->event, &s->sigrtmin1_event_source, SIGRTMIN+1, dispatch_sigrtmin1, s);
+        if (r < 0)
+                return r;
+
+        r = sd_event_add_signal(s->event, &s->sigrtmin1_event_source, SIGRTMIN+2, dispatch_sigrtmin2, s);
         if (r < 0)
                 return r;
 
@@ -1876,7 +1914,7 @@ int server_init(Server *s) {
 
         (void) client_context_acquire_default(s);
 
-        return system_journal_open(s, false);
+        return system_journal_open(s, false, false);
 }
 
 void server_maybe_append_tags(Server *s) {

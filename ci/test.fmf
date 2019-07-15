@@ -1,0 +1,11 @@
+/pull-request/smoke:
+    summary:
+        Basic set of quick smoke tests for systemd.
+    discover:
+        how: fmf
+        filter: "tier: 1 & distros: rhel-8"
+        repository: "https://github.com/systemd-rhel/tests"
+    prepare:
+        how: ansible
+        playbooks:
+            - ci/rhel-8.yml

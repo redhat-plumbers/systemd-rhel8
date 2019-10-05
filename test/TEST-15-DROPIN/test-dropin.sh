@@ -102,7 +102,20 @@ test_basic_dropins () {
         check_ok b Wants c.service
         systemctl stop a c
 
-        clear_services a b c
+    echo "*** test -.service.d/ top level drop-in"
+    create_services a b
+    check_ko a ExecCondition "/bin/echo a"
+    check_ko b ExecCondition "/bin/echo b"
+    mkdir -p /usr/lib/systemd/system/-.service.d
+    cat >/usr/lib/systemd/system/-.service.d/override.conf <<EOF
+[Service]
+ExecCondition=/bin/echo %n
+EOF
+    check_ok a ExecCondition "/bin/echo a"
+    check_ok b ExecCondition "/bin/echo b"
+    rm -rf /usr/lib/systemd/system/-.service.d
+
+    clear_services a b c
 }
 
 test_template_dropins () {

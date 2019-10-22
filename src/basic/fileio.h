@@ -38,6 +38,7 @@ int write_string_filef(const char *fn, WriteStringFileFlags flags, const char *f
 int read_one_line_file(const char *fn, char **line);
 int read_full_file(const char *fn, char **contents, size_t *size);
 int read_full_stream(FILE *f, char **contents, size_t *size);
+int read_full_virtual_file(const char *filename, char **ret_contents, size_t *ret_size);
 
 int verify_file(const char *fn, const char *blob, bool accept_extra_nl);
 

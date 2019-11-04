@@ -63,6 +63,19 @@ grep -q '^PRIORITY=6$' /output
 ! grep -q '^FOO=' /output
 ! grep -q '^SYSLOG_FACILITY=' /output
 
+# https://github.com/systemd/systemd/issues/13708
+ID=$(journalctl --new-id128 | sed -n 2p)
+systemd-cat -t "$ID" bash -c 'echo parent; (echo child) & wait' &
+PID=$!
+wait %%
+journalctl --sync
+# We can drop this grep when https://github.com/systemd/systemd/issues/13937
+# has a fix.
+journalctl -b -o export -t "$ID" --output-fields=_PID | grep '^_PID=' >/output
+[[ `grep -c . /output` -eq 2 ]]
+grep -q "^_PID=$PID" /output
+grep -vq "^_PID=$PID" /output
+
 # Don't lose streams on restart
 systemctl start forever-print-hola
 sleep 3

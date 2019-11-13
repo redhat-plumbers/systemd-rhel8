@@ -154,6 +154,7 @@ fi
 KERNEL_APPEND="$PARAMS \
 root=/dev/sda1 \
 raid=noautodetect \
+rd.luks=0 \
 loglevel=2 \
 init=$PATH_TO_INIT \
 console=ttyS0 \

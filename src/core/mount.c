@@ -535,6 +535,32 @@ static int mount_verify(Mount *m) {
         return 0;
 }
 
+static int mount_add_non_exec_dependencies(Mount *m) {
+        int r;
+        assert(m);
+
+        /* Adds in all dependencies directly responsible for ordering the mount, as opposed to dependencies
+         * resulting from the ExecContext and such. */
+
+        r = mount_add_device_dependencies(m);
+        if (r < 0)
+                return r;
+
+        r = mount_add_mount_dependencies(m);
+        if (r < 0)
+                return r;
+
+        r = mount_add_quota_dependencies(m);
+        if (r < 0)
+                return r;
+
+        r = mount_add_default_dependencies(m);
+        if (r < 0)
+                return r;
+
+        return 0;
+}
+
 static int mount_add_extras(Mount *m) {
         Unit *u = UNIT(m);
         int r;
@@ -558,18 +584,6 @@ static int mount_add_extras(Mount *m) {
                         return r;
         }
 
-        r = mount_add_device_dependencies(m);
-        if (r < 0)
-                return r;
-
-        r = mount_add_mount_dependencies(m);
-        if (r < 0)
-                return r;
-
-        r = mount_add_quota_dependencies(m);
-        if (r < 0)
-                return r;
-
         r = unit_patch_contexts(u);
         if (r < 0)
                 return r;
@@ -582,7 +596,7 @@ static int mount_add_extras(Mount *m) {
         if (r < 0)
                 return r;
 
-        r = mount_add_default_dependencies(m);
+        r = mount_add_non_exec_dependencies(m);
         if (r < 0)
                 return r;
 
@@ -1526,7 +1540,7 @@ static int mount_setup_existing_unit(
         }
 
         if (load_extras)
-                return mount_add_extras(MOUNT(u));
+                return mount_add_non_exec_dependencies(MOUNT(u));
 
         return 0;
 }

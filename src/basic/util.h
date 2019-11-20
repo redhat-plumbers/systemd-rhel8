@@ -170,6 +170,13 @@ static inline int negative_errno(void) {
         return -errno;
 }
 
+/* Two different errors for access problems */
+static inline bool ERRNO_IS_PRIVILEGE(int r) {
+        return IN_SET(abs(r),
+                      EACCES,
+                      EPERM);
+}
+
 static inline unsigned u64log2(uint64_t n) {
 #if __SIZEOF_LONG_LONG__ == 8
         return (n > 1) ? (unsigned) __builtin_clzll(n) ^ 63U : 0;

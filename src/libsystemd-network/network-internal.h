@@ -29,7 +29,8 @@ bool net_match_config(Set *match_mac,
                       const char *dev_parent_driver,
                       const char *dev_driver,
                       const char *dev_type,
-                      const char *dev_name);
+                      const char *dev_name,
+                      char * const *alternative_names);
 
 CONFIG_PARSER_PROTOTYPE(config_parse_net_condition);
 CONFIG_PARSER_PROTOTYPE(config_parse_hwaddr);

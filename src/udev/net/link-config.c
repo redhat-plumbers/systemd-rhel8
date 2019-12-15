@@ -238,7 +238,8 @@ int link_config_get(link_config_ctx *ctx, struct udev_device *device,
                                      udev_device_get_driver(udev_device_get_parent(device)),
                                      udev_device_get_property_value(device, "ID_NET_DRIVER"),
                                      udev_device_get_devtype(device),
-                                     udev_device_get_sysname(device))) {
+                                     udev_device_get_sysname(device),
+                                     NULL)) {
                         if (link->match_name) {
                                 unsigned char name_assign_type = NET_NAME_UNKNOWN;
 

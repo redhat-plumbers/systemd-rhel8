@@ -92,6 +92,18 @@ static bool net_condition_test_strv(char * const *raw_patterns,
         return string && strv_fnmatch(raw_patterns, string, 0);
 }
 
+static bool net_condition_test_ifname(char * const *patterns, const char *ifname, char * const *alternative_names) {
+        if (net_condition_test_strv(patterns, ifname))
+                return true;
+
+        char * const *p;
+        STRV_FOREACH(p, alternative_names)
+                if (net_condition_test_strv(patterns, *p))
+                        return true;
+
+        return false;
+}
+
 bool net_match_config(Set *match_mac,
                       char * const *match_paths,
                       char * const *match_drivers,
@@ -107,7 +119,8 @@ bool net_match_config(Set *match_mac,
                       const char *dev_parent_driver,
                       const char *dev_driver,
                       const char *dev_type,
-                      const char *dev_name) {
+                      const char *dev_name,
+                      char * const *alternative_names) {
 
         if (match_host && condition_test(match_host) <= 0)
                 return false;
@@ -122,6 +135,9 @@ bool net_match_config(Set *match_mac,
                 return false;
 
         if (match_arch && condition_test(match_arch) <= 0)
+                return false;
+
+        if (!net_condition_test_ifname(match_names, dev_name, alternative_names))
                 return false;
 
         if (match_mac && dev_mac && !set_contains(match_mac, dev_mac))
@@ -214,7 +230,7 @@ int config_parse_match_ifnames(
                 if (r == 0)
                         break;
 
-                if (!ifname_valid(word)) {
+                if (!ifname_valid_full(word, ltype)) {
                         log_syntax(unit, LOG_ERR, filename, line, 0, "Interface name is not valid or too long, ignoring assignment: %s", rvalue);
                         return 0;
                 }

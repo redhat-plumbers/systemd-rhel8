@@ -49,6 +49,7 @@ struct link_config {
         struct ether_addr *mac;
         MACPolicy mac_policy;
         NamePolicy *name_policy;
+        NamePolicy *alternative_names_policy;
         char *name;
         char **alternative_names;
         char *alias;
@@ -78,6 +79,9 @@ int link_get_driver(link_config_ctx *ctx, struct udev_device *device, char **ret
 const char *name_policy_to_string(NamePolicy p) _const_;
 NamePolicy name_policy_from_string(const char *p) _pure_;
 
+const char *alternative_names_policy_to_string(NamePolicy p) _const_;
+NamePolicy alternative_names_policy_from_string(const char *p) _pure_;
+
 const char *mac_policy_to_string(MACPolicy p) _const_;
 MACPolicy mac_policy_from_string(const char *p) _pure_;
 
@@ -86,3 +90,4 @@ const struct ConfigPerfItem* link_config_gperf_lookup(const char *key, GPERF_LEN
 
 int config_parse_mac_policy(const char *unit, const char *filename, unsigned line, const char *section, unsigned section_line, const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);
 int config_parse_name_policy(const char *unit, const char *filename, unsigned line, const char *section, unsigned section_line, const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);
+int config_parse_alternative_names_policy(const char *unit, const char *filename, unsigned line, const char *section, unsigned section_line, const char *lvalue, int ltype, const char *rvalue, void *data, void *userdata);

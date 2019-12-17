@@ -90,6 +90,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <linux/if.h>
 #include <linux/pci_regs.h>
 
 #include "dirent-util.h"
@@ -171,21 +172,21 @@ struct netnames {
         bool mac_valid;
 
         struct udev_device *pcidev;
-        char pci_slot[IFNAMSIZ];
-        char pci_path[IFNAMSIZ];
-        char pci_onboard[IFNAMSIZ];
+        char pci_slot[ALTIFNAMSIZ];
+        char pci_path[ALTIFNAMSIZ];
+        char pci_onboard[ALTIFNAMSIZ];
         const char *pci_onboard_label;
 
-        char usb_ports[IFNAMSIZ];
-        char bcma_core[IFNAMSIZ];
-        char ccw_busid[IFNAMSIZ];
-        char vio_slot[IFNAMSIZ];
-        char platform_path[IFNAMSIZ];
+        char usb_ports[ALTIFNAMSIZ];
+        char bcma_core[ALTIFNAMSIZ];
+        char ccw_busid[ALTIFNAMSIZ];
+        char vio_slot[ALTIFNAMSIZ];
+        char platform_path[ALTIFNAMSIZ];
 };
 
 struct virtfn_info {
         struct udev_device *physfn_pcidev;
-        char suffix[IFNAMSIZ];
+        char suffix[ALTIFNAMSIZ];
 };
 
 static const NamingScheme* naming_scheme_from_name(const char *name) {
@@ -882,7 +883,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
 
         err = names_mac(dev, &names);
         if (err >= 0 && names.mac_valid) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 xsprintf(str, "%sx%02x%02x%02x%02x%02x%02x", prefix,
                          names.mac[0], names.mac[1], names.mac[2],
@@ -895,7 +896,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
         /* get path names for Linux on System z network devices */
         err = names_ccw(dev, &names);
         if (err >= 0 && names.type == NET_CCW) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (snprintf_ok(str, sizeof str, "%s%s", prefix, names.ccw_busid))
                         udev_builtin_add_property(dev, test, "ID_NET_NAME_PATH", str);
@@ -905,7 +906,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
         /* get ibmveth/ibmvnic slot-based names. */
         err = names_vio(dev, &names);
         if (err >= 0 && names.type == NET_VIO) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (snprintf_ok(str, sizeof str, "%s%s", prefix, names.vio_slot))
                         udev_builtin_add_property(dev, test, "ID_NET_NAME_SLOT", str);
@@ -915,7 +916,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
         /* get ACPI path names for ARM64 platform devices */
         err = names_platform(dev, &names, test);
         if (err >= 0 && names.type == NET_PLATFORM) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (snprintf_ok(str, sizeof str, "%s%s", prefix, names.platform_path))
                         udev_builtin_add_property(dev, test, "ID_NET_NAME_PATH", str);
@@ -929,7 +930,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
 
         /* plain PCI device */
         if (names.type == NET_PCI) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (names.pci_onboard[0] &&
                     snprintf_ok(str, sizeof str, "%s%s", prefix, names.pci_onboard))
@@ -952,7 +953,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
         /* USB device */
         err = names_usb(dev, &names);
         if (err >= 0 && names.type == NET_USB) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (names.pci_path[0] &&
                     snprintf_ok(str, sizeof str, "%s%s%s", prefix, names.pci_path, names.usb_ports))
@@ -967,7 +968,7 @@ static int builtin_net_id(struct udev_device *dev, int argc, char *argv[], bool 
         /* Broadcom bus */
         err = names_bcma(dev, &names);
         if (err >= 0 && names.type == NET_BCMA) {
-                char str[IFNAMSIZ];
+                char str[ALTIFNAMSIZ];
 
                 if (names.pci_path[0] &&
                     snprintf_ok(str, sizeof str, "%s%s%s", prefix, names.pci_path, names.bcma_core))

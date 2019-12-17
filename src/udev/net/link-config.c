@@ -19,6 +19,7 @@
 #include "path-util.h"
 #include "proc-cmdline.h"
 #include "random-util.h"
+#include "socket-util.h"
 #include "stat-util.h"
 #include "string-table.h"
 #include "string-util.h"
@@ -405,7 +406,7 @@ int link_config_apply(link_config_ctx *ctx, link_config *config,
                 NamePolicy *policy;
 
                 for (policy = config->name_policy;
-                     !new_name && *policy != _NAMEPOLICY_INVALID; policy++) {
+                     *policy != _NAMEPOLICY_INVALID; policy++) {
                         switch (*policy) {
                                 case NAMEPOLICY_KERNEL:
                                         respect_predictable = true;
@@ -428,6 +429,8 @@ int link_config_apply(link_config_ctx *ctx, link_config *config,
                                 default:
                                         break;
                         }
+                        if (ifname_valid(new_name))
+                                break;
                 }
         }
 

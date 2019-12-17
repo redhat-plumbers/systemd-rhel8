@@ -816,13 +816,13 @@ out:
 
 static int rename_netif(struct udev_event *event) {
         struct udev_device *dev = event->dev;
-        char name[IFNAMSIZ];
+        char name[ALTIFNAMSIZ];
         const char *oldname;
         int r;
 
         oldname = udev_device_get_sysname(dev);
 
-        strscpy(name, IFNAMSIZ, event->name);
+        strscpy(name, ALTIFNAMSIZ, event->name);
 
         r = rtnl_set_link_name(&event->rtnl, udev_device_get_ifindex(dev), name);
         if (r < 0)

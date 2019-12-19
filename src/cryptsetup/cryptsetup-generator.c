@@ -247,8 +247,11 @@ static int create_disk(
                 "DefaultDependencies=no\n"
                 "Conflicts=umount.target\n"
                 "IgnoreOnIsolate=true\n"
-                "After=%s\n",
-                netdev ? "remote-fs-pre.target" : "cryptsetup-pre.target");
+                "After=cryptsetup-pre.target\n",
+                arg_crypttab);
+
+        if (netdev)
+                fprintf(f, "After=remote-fs-pre.target\n");
 
         if (password) {
                 password_escaped = specifier_escape(password);

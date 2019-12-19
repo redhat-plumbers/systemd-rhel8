@@ -173,6 +173,47 @@ static int generate_keydev_mount(
         return 0;
 }
 
+static int print_dependencies(FILE *f, const char* device_path) {
+        int r;
+
+        if (STR_IN_SET(device_path, "-", "none"))
+                /* None, nothing to do */
+                return 0;
+
+        if (PATH_IN_SET(device_path, "/dev/urandom", "/dev/random", "/dev/hw_random")) {
+                /* RNG device, add random dep */
+                fputs("After=systemd-random-seed.service\n", f);
+                return 0;
+        }
+
+        _cleanup_free_ char *udev_node = fstab_node_to_udev_node(device_path);
+        if (!udev_node)
+                return log_oom();
+
+        if (path_equal(udev_node, "/dev/null"))
+                return 0;
+
+        if (path_startswith(udev_node, "/dev/")) {
+                /* We are dealing with a block device, add dependency for correspoding unit */
+                _cleanup_free_ char *unit = NULL;
+
+                r = unit_name_from_path(udev_node, ".device", &unit);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to generate unit name: %m");
+
+                fprintf(f, "After=%1$s\nRequires=%1$s\n", unit);
+        } else {
+                /* Regular file, add mount dependency */
+                _cleanup_free_ char *escaped_path = specifier_escape(device_path);
+                if (!escaped_path)
+                        return log_oom();
+
+                fprintf(f, "RequiresMountsFor=%s\n", escaped_path);
+        }
+
+        return 0;
+}
+
 static int create_disk(
                 const char *name,
                 const char *device,
@@ -181,8 +222,8 @@ static int create_disk(
                 const char *options) {
 
         _cleanup_free_ char *n = NULL, *d = NULL, *u = NULL, *e = NULL,
-                *keydev_mount = NULL, *keyfile_timeout_value = NULL, *password_escaped = NULL,
-                *filtered = NULL, *u_escaped = NULL, *filtered_escaped = NULL, *name_escaped = NULL;
+                *keydev_mount = NULL, *keyfile_timeout_value = NULL,
+                *filtered = NULL, *u_escaped = NULL, *name_escaped = NULL, *header_path = NULL, *password_buffer = NULL;
         _cleanup_fclose_ FILE *f = NULL;
         const char *dmname;
         bool noauto, nofail, tmp, swap, netdev;
@@ -239,38 +280,25 @@ static int create_disk(
         if (r < 0)
                 return r;
 
-        fprintf(f,
-                "[Unit]\n"
-                "Description=Cryptography Setup for %%I\n"
-                "Documentation=man:crypttab(5) man:systemd-cryptsetup-generator(8) man:systemd-cryptsetup@.service(8)\n"
-                "SourcePath=/etc/crypttab\n"
-                "DefaultDependencies=no\n"
-                "Conflicts=umount.target\n"
-                "IgnoreOnIsolate=true\n"
-                "After=cryptsetup-pre.target\n",
-                arg_crypttab);
+        r = generator_write_cryptsetup_unit_section(f, "/etc/crypttab");
+        if (r < 0)
+                return r;
 
         if (netdev)
                 fprintf(f, "After=remote-fs-pre.target\n");
 
-        if (password) {
-                password_escaped = specifier_escape(password);
-                if (!password_escaped)
-                        return log_oom();
-        }
-
         if (keydev) {
-                _cleanup_free_ char *unit = NULL, *p = NULL;
+                _cleanup_free_ char *unit = NULL;
 
                 r = generate_keydev_mount(name, keydev, keyfile_timeout_value, keyfile_can_timeout > 0, &unit, &keydev_mount);
                 if (r < 0)
                         return log_error_errno(r, "Failed to generate keydev mount unit: %m");
 
-                p = prefix_root(keydev_mount, password_escaped);
-                if (!p)
+                password_buffer = path_join(NULL, keydev_mount, password);
+                if (!password_buffer)
                         return log_oom();
 
-                free_and_replace(password_escaped, p);
+                password = password_buffer;
 
                 fprintf(f, "After=%s\n", unit);
                 if (keyfile_can_timeout > 0)
@@ -285,42 +313,18 @@ static int create_disk(
                         netdev ? "remote-cryptsetup.target" : "cryptsetup.target");
 
         if (password && !keydev) {
-                if (STR_IN_SET(password, "/dev/urandom", "/dev/random", "/dev/hw_random"))
-                        fputs("After=systemd-random-seed.service\n", f);
-                else if (!STR_IN_SET(password, "-", "none")) {
-                        _cleanup_free_ char *uu;
-
-                        uu = fstab_node_to_udev_node(password);
-                        if (!uu)
-                                return log_oom();
-
-                        if (!path_equal(uu, "/dev/null")) {
-
-                                if (path_startswith(uu, "/dev/")) {
-                                        _cleanup_free_ char *dd = NULL;
-
-                                        r = unit_name_from_path(uu, ".device", &dd);
-                                        if (r < 0)
-                                                return log_error_errno(r, "Failed to generate unit name: %m");
-
-                                        fprintf(f, "After=%1$s\nRequires=%1$s\n", dd);
-                                } else
-                                        fprintf(f, "RequiresMountsFor=%s\n", password_escaped);
-                        }
-                }
+                r = print_dependencies(f, password);
+                if (r < 0)
+                    return r;
         }
 
-        if (path_startswith(u, "/dev/")) {
+        if (path_startswith(u, "/dev/"))
                 fprintf(f,
                         "BindsTo=%s\n"
                         "After=%s\n"
                         "Before=umount.target\n",
                         d, d);
-
-                if (swap)
-                        fputs("Before=dev-mapper-%i.swap\n",
-                              f);
-        } else
+        else
                 fprintf(f,
                         "RequiresMountsFor=%s\n",
                         u_escaped);
@@ -329,22 +333,9 @@ static int create_disk(
         if (r < 0)
                 return r;
 
-        if (filtered) {
-                filtered_escaped = specifier_escape(filtered);
-                if (!filtered_escaped)
-                        return log_oom();
-        }
-
-        fprintf(f,
-                "\n[Service]\n"
-                "Type=oneshot\n"
-                "RemainAfterExit=yes\n"
-                "TimeoutSec=0\n" /* the binary handles timeouts anyway */
-                "KeyringMode=shared\n" /* make sure we can share cached keys among instances */
-                "ExecStart=" SYSTEMD_CRYPTSETUP_PATH " attach '%s' '%s' '%s' '%s'\n"
-                "ExecStop=" SYSTEMD_CRYPTSETUP_PATH " detach '%s'\n",
-                name_escaped, u_escaped, strempty(password_escaped), strempty(filtered_escaped),
-                name_escaped);
+        r = generator_write_cryptsetup_service_section(f, name, u, password, filtered);
+        if (r < 0)
+                return r;
 
         if (tmp)
                 fprintf(f,

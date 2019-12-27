@@ -242,6 +242,10 @@ int unit_file_find_dropin_paths(
 
         assert(ret);
 
+        SET_FOREACH(name, names, i)
+                STRV_FOREACH(p, lookup_path)
+                        (void) unit_file_find_dirs(original_root, unit_path_cache, *p, name, dir_suffix, &dirs);
+
         /* All the names in the unit are of the same type so just grab one. */
         name = (char*) set_first(names);
         if (name) {
@@ -253,7 +257,7 @@ int unit_file_find_dropin_paths(
                                                "Failed to to derive unit type from unit name: %s",
                                                name);
 
-                /* Special top level drop in for "<unit type>.<suffix>". Add this first as it's the most generic
+                /* Special top level drop in for "<unit type>.<suffix>". Add this last as it's the most generic
                  * and should be able to be overridden by more specific drop-ins. */
                 STRV_FOREACH(p, lookup_path)
                         (void) unit_file_find_dirs(original_root,
@@ -263,10 +267,6 @@ int unit_file_find_dropin_paths(
                                                    dir_suffix,
                                                    &dirs);
         }
-
-        SET_FOREACH(name, names, i)
-                STRV_FOREACH(p, lookup_path)
-                        (void) unit_file_find_dirs(original_root, unit_path_cache, *p, name, dir_suffix, &dirs);
 
         if (strv_isempty(dirs)) {
                 *ret = NULL;

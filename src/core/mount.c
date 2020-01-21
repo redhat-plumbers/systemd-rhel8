@@ -238,7 +238,7 @@ static void mount_done(Unit *u) {
         m->timer_event_source = sd_event_source_unref(m->timer_event_source);
 }
 
-_pure_ static MountParameters* get_mount_parameters_fragment(Mount *m) {
+static MountParameters* get_mount_parameters_fragment(Mount *m) {
         assert(m);
 
         if (m->from_fragment)
@@ -247,7 +247,7 @@ _pure_ static MountParameters* get_mount_parameters_fragment(Mount *m) {
         return NULL;
 }
 
-_pure_ static MountParameters* get_mount_parameters(Mount *m) {
+static MountParameters* get_mount_parameters(Mount *m) {
         assert(m);
 
         if (m->from_proc_self_mountinfo)

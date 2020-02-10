@@ -1770,10 +1770,8 @@ static int dispatch_rqueue(sd_bus *bus, bool hint_priority, int64_t priority, sd
                 r = bus_read_message(bus, hint_priority, priority);
                 if (r < 0)
                         return r;
-                if (r == 0) {
-                        *m = NULL;
+                if (r == 0)
                         return ret;
-                }
 
                 ret = 1;
         }

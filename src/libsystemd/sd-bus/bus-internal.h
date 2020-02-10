@@ -221,11 +221,11 @@ struct sd_bus {
         size_t rbuffer_size;
 
         sd_bus_message **rqueue;
-        size_t rqueue_size;
+        unsigned rqueue_size;
         size_t rqueue_allocated;
 
         sd_bus_message **wqueue;
-        size_t wqueue_size;
+        unsigned wqueue_size;
         size_t windex;
         size_t wqueue_allocated;
 

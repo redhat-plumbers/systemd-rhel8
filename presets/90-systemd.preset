@@ -34,3 +34,5 @@ disable syslog.socket
 disable systemd-journal-gatewayd.*
 disable systemd-journal-remote.*
 disable systemd-journal-upload.*
+
+enable systemd-pstore.service

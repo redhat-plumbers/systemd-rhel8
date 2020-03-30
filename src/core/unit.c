@@ -2841,8 +2841,9 @@ int unit_add_dependency(
                 return 0;
         }
 
-        if ((d == UNIT_BEFORE && other->type == UNIT_DEVICE) ||
-            (d == UNIT_AFTER && u->type == UNIT_DEVICE)) {
+        /* Note that ordering a device unit after a unit is permitted since it
+         * allows to start its job running timeout at a specific time. */
+        if (d == UNIT_BEFORE && other->type == UNIT_DEVICE) {
                 log_unit_warning(u, "Dependency Before=%s ignored (.device units cannot be delayed)", other->id);
                 return 0;
         }

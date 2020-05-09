@@ -83,6 +83,10 @@ systemd-cat -t "$ID" /bin/sh -c 'env echo -n "This will";echo;env echo -n "usual
 journalctl --sync
 journalctl -b -o cat -t "$ID" >/output
 cmp /expected /output
+[[ $(journalctl -b -o export -t "$ID" --output-fields=_TRANSPORT | grep -Pc "^_TRANSPORT=stdout$") -eq 3 ]]
+[[ $(journalctl -b -o export -t "$ID" --output-fields=_LINE_BREAK | grep -Pc "^_LINE_BREAK=pid-change$") -eq 3 ]]
+[[ $(journalctl -b -o export -t "$ID" --output-fields=_PID | sort -u | grep -c "^_PID=.*$") -eq 3 ]]
+[[ $(journalctl -b -o export -t "$ID" --output-fields=MESSAGE | grep -Pc "^MESSAGE=(This will|usually fail|and be truncated)$") -eq 3 ]]
 
 # Add new tests before here, the journald restarts below
 # may make tests flappy.

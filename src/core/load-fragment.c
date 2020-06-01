@@ -4338,7 +4338,6 @@ static int load_from_path(Unit *u, const char *path) {
                                 r = open_follow(&filename, &f, symlink_names, &id);
                         if (r >= 0)
                                 break;
-                        filename = mfree(filename);
 
                         /* ENOENT means that the file is missing or is a dangling symlink.
                          * ENOTDIR means that one of paths we expect to be is a directory
@@ -4347,7 +4346,8 @@ static int load_from_path(Unit *u, const char *path) {
                          */
                         if (r == -EACCES)
                                 log_debug_errno(r, "Cannot access \"%s\": %m", filename);
-                        else if (!IN_SET(r, -ENOENT, -ENOTDIR))
+                        filename = mfree(filename);
+                        if (!IN_SET(r, -ENOENT, -ENOTDIR))
                                 return r;
 
                         /* Empty the symlink names for the next run */

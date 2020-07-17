@@ -38,7 +38,9 @@ static inline bool rtnl_message_type_is_routing_policy_rule(uint16_t type) {
 
 int rtnl_set_link_name(sd_netlink **rtnl, int ifindex, const char *name);
 int rtnl_set_link_properties(sd_netlink **rtnl, int ifindex, const char *alias, const struct ether_addr *mac, uint32_t mtu);
+int rtnl_get_link_alternative_names(sd_netlink **rtnl, int ifindex, char ***ret);
 int rtnl_set_link_alternative_names(sd_netlink **rtnl, int ifindex, char * const *alternative_names);
+int rtnl_delete_link_alternative_names(sd_netlink **rtnl, int ifindex, char * const *alternative_names);
 int rtnl_resolve_link_alternative_name(sd_netlink **rtnl, const char *name, int *ret);
 
 int rtnl_log_parse_error(int r);

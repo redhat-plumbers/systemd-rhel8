@@ -578,12 +578,18 @@ LIBSYSTEMD_240 {
         sd_bus_get_method_call_timeout;
 } LIBSYSTEMD_239;
 
+LIBSYSTEMD_247 {
+global:
+        sd_event_add_time_relative;
+        sd_event_source_set_time_relative;
+} LIBSYSTEMD_240;
+
 LIBSYSTEMD_248 {
 global:
         sd_event_source_set_ratelimit;
         sd_event_source_get_ratelimit;
         sd_event_source_is_ratelimited;
-} LIBSYSTEMD_240;
+} LIBSYSTEMD_247;
 
 LIBSYSTEMD_250 {
 global:

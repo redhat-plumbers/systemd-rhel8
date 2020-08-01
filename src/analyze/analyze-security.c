@@ -476,7 +476,7 @@ static int assess_system_call_architectures(
         return 0;
 }
 
-static bool syscall_names_in_filter(Set *s, bool whitelist, const SyscallFilterSet *f) {
+static bool syscall_names_in_filter(Set *s, bool whitelist, const SyscallFilterSet *f, const char **ret_offending_syscall) {
         const char *syscall;
 
         NULSTR_FOREACH(syscall, f->value) {
@@ -486,7 +486,7 @@ static bool syscall_names_in_filter(Set *s, bool whitelist, const SyscallFilterS
                         const SyscallFilterSet *g;
 
                         assert_se(g = syscall_filter_set_find(syscall));
-                        if (syscall_names_in_filter(s, whitelist, g))
+                        if (syscall_names_in_filter(s, whitelist, g, ret_offending_syscall))
                                 return true; /* bad! */
 
                         continue;
@@ -499,10 +499,13 @@ static bool syscall_names_in_filter(Set *s, bool whitelist, const SyscallFilterS
 
                 if (set_contains(s, syscall) == whitelist) {
                         log_debug("Offending syscall filter item: %s", syscall);
+                        if (ret_offending_syscall)
+                                *ret_offending_syscall = syscall;
                         return true; /* bad! */
                 }
         }
 
+        *ret_offending_syscall = NULL;
         return false;
 }
 
@@ -513,31 +516,33 @@ static int assess_system_call_filter(
                 uint64_t *ret_badness,
                 char **ret_description) {
 
-        const SyscallFilterSet *f;
-        char *d = NULL;
-        uint64_t b;
-
         assert(a);
         assert(info);
         assert(ret_badness);
         assert(ret_description);
 
         assert(a->parameter < _SYSCALL_FILTER_SET_MAX);
-        f = syscall_filter_sets + a->parameter;
+        const SyscallFilterSet *f = syscall_filter_sets + a->parameter;
+
+        char *d = NULL;
+        uint64_t b;
 
         if (!info->system_call_filter_whitelist && set_isempty(info->system_call_filter)) {
                 d = strdup("Service does not filter system calls");
                 b = 10;
         } else {
                 bool bad;
+                const char *offender = NULL;
 
                 log_debug("Analyzing system call filter, checking against: %s", f->name);
-                bad = syscall_names_in_filter(info->system_call_filter, info->system_call_filter_whitelist, f);
+                bad = syscall_names_in_filter(info->system_call_filter, info->system_call_filter_whitelist, f, &offender);
                 log_debug("Result: %s", bad ? "bad" : "good");
 
                 if (info->system_call_filter_whitelist) {
                         if (bad) {
-                                (void) asprintf(&d, "System call whitelist defined for service, and %s is included", f->name);
+                                (void) asprintf(&d, "System call whitelist defined for service, and %s is included "
+                                                "(e.g. %s is allowed)",
+                                                f->name, offender);
                                 b = 9;
                         } else {
                                 (void) asprintf(&d, "System call whitelist defined for service, and %s is not included", f->name);
@@ -545,7 +550,9 @@ static int assess_system_call_filter(
                         }
                 } else {
                         if (bad) {
-                                (void) asprintf(&d, "System call blacklist defined for service, and %s is not included", f->name);
+                                (void) asprintf(&d, "System call blacklist defined for service, and %s is not included "
+                                                "(e.g. %s is allowed)",
+                                                f->name, offender);
                                 b = 10;
                         } else {
                                 (void) asprintf(&d, "System call blacklist defined for service, and %s is included", f->name);

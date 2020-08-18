@@ -1417,6 +1417,12 @@ install_libsystemd_static = static_library(
 
 ############################################################
 
+make_directive_index_py = find_program('tools/make-directive-index.py')
+make_man_index_py = find_program('tools/make-man-index.py')
+xml_helper_py = find_program('tools/xml_helper.py')
+hwdb_update_sh = find_program('tools/meson-hwdb-update.sh')
+syscall_names_update_sh = find_program('tools/syscall-names-update.sh')
+
 # binaries that have --help and are intended for use by humans,
 # usually, but not always, installed in /bin.
 public_programs = []
@@ -2720,11 +2726,6 @@ run_target('fuzzers',
         command : ['true'])
 
 ############################################################
-
-make_directive_index_py = find_program('tools/make-directive-index.py')
-make_man_index_py = find_program('tools/make-man-index.py')
-xml_helper_py = find_program('tools/xml_helper.py')
-hwdb_update_sh = find_program('tools/meson-hwdb-update.sh')
 
 subdir('units')
 subdir('sysctl.d')

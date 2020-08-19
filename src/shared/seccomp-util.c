@@ -854,12 +854,10 @@ const SyscallFilterSet syscall_filter_sets[_SYSCALL_FILTER_SET_MAX] = {
 };
 
 const SyscallFilterSet *syscall_filter_set_find(const char *name) {
-        unsigned i;
-
         if (isempty(name) || name[0] != '@')
                 return NULL;
 
-        for (i = 0; i < _SYSCALL_FILTER_SET_MAX; i++)
+        for (unsigned i = 0; i < _SYSCALL_FILTER_SET_MAX; i++)
                 if (streq(syscall_filter_sets[i].name, name))
                         return syscall_filter_sets + i;
 
@@ -1101,7 +1099,6 @@ int seccomp_restrict_namespaces(unsigned long retain) {
 
         SECCOMP_FOREACH_LOCAL_ARCH(arch) {
                 _cleanup_(seccomp_releasep) scmp_filter_ctx seccomp = NULL;
-                unsigned i;
 
                 log_debug("Operating on architecture: %s", seccomp_arch_to_string(arch));
 
@@ -1131,7 +1128,7 @@ int seccomp_restrict_namespaces(unsigned long retain) {
                         continue;
                 }
 
-                for (i = 0; namespace_flag_map[i].name; i++) {
+                for (unsigned i = 0; namespace_flag_map[i].name; i++) {
                         unsigned long f;
 
                         f = namespace_flag_map[i].flag;
@@ -1284,7 +1281,7 @@ int seccomp_restrict_address_families(Set *address_families, bool whitelist) {
                         return r;
 
                 if (whitelist) {
-                        int af, first = 0, last = 0;
+                        int first = 0, last = 0;
                         void *afp;
 
                         /* If this is a whitelist, we first block the address families that are out of range and then
@@ -1292,7 +1289,7 @@ int seccomp_restrict_address_families(Set *address_families, bool whitelist) {
                          * the set. */
 
                         SET_FOREACH(afp, address_families, i) {
-                                af = PTR_TO_INT(afp);
+                                int af = PTR_TO_INT(afp);
 
                                 if (af <= 0 || af >= af_max())
                                         continue;
@@ -1346,7 +1343,7 @@ int seccomp_restrict_address_families(Set *address_families, bool whitelist) {
                                 }
 
                                 /* Block everything between the first and last entry */
-                                for (af = 1; af < af_max(); af++) {
+                                for (int af = 1; af < af_max(); af++) {
 
                                         if (set_contains(address_families, INT_TO_PTR(af)))
                                                 continue;
@@ -1374,7 +1371,6 @@ int seccomp_restrict_address_families(Set *address_families, bool whitelist) {
                          * checks. */
 
                         SET_FOREACH(af, address_families, i) {
-
                                 r = seccomp_rule_add_exact(
                                                 seccomp,
                                                 SCMP_ACT_ERRNO(EAFNOSUPPORT),

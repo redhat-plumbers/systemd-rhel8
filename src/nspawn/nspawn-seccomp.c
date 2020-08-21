@@ -20,7 +20,7 @@
 
 #if HAVE_SECCOMP
 
-static int seccomp_add_default_syscall_filter(
+static int add_syscall_filters(
                 scmp_filter_ctx ctx,
                 uint32_t arch,
                 uint64_t cap_list_retain,
@@ -140,6 +140,7 @@ static int seccomp_add_default_syscall_filter(
                  */
         };
 
+        _cleanup_strv_free_ char **added = NULL;
         int r;
         size_t i;
         char **p;
@@ -153,17 +154,24 @@ static int seccomp_add_default_syscall_filter(
                                                     SCMP_ACT_ALLOW,
                                                     syscall_blacklist,
                                                     false,
-                                                    NULL);
+                                                    &added);
                 if (r < 0)
                         return log_error_errno(r, "Failed to add syscall filter item %s: %m", whitelist[i].name);
         }
 
         STRV_FOREACH(p, syscall_whitelist) {
-                r = seccomp_add_syscall_filter_item(ctx, *p, SCMP_ACT_ALLOW, syscall_blacklist, true, NULL);
+                r = seccomp_add_syscall_filter_item(ctx, *p, SCMP_ACT_ALLOW, syscall_blacklist, true, &added);
                 if (r < 0)
                         log_warning_errno(r, "Failed to add rule for system call %s on %s, ignoring: %m",
                                           *p, seccomp_arch_to_string(arch));
         }
+
+        /* The default action is ENOSYS. Respond with EPERM to all other "known" but not allow-listed
+         * syscalls. */
+        r = seccomp_add_syscall_filter_item(ctx, "@known", SCMP_ACT_ERRNO(EPERM), added, true, NULL);
+        if (r < 0)
+                log_warning_errno(r, "Failed to add rule for @known set on %s, ignoring: %m",
+                                  seccomp_arch_to_string(arch));
 
         return 0;
 }
@@ -182,11 +190,13 @@ int setup_seccomp(uint64_t cap_list_retain, char **syscall_whitelist, char **sys
 
                 log_debug("Applying whitelist on architecture: %s", seccomp_arch_to_string(arch));
 
-                r = seccomp_init_for_arch(&seccomp, arch, SCMP_ACT_ERRNO(EPERM));
+                /* We install ENOSYS as the default action, but it will only apply to syscalls which are not
+                 * in the @known set, see above. */
+                r = seccomp_init_for_arch(&seccomp, arch, SCMP_ACT_ERRNO(ENOSYS));
                 if (r < 0)
                         return log_error_errno(r, "Failed to allocate seccomp object: %m");
 
-                r = seccomp_add_default_syscall_filter(seccomp, arch, cap_list_retain, syscall_whitelist, syscall_blacklist);
+                r = add_syscall_filters(seccomp, arch, cap_list_retain, syscall_whitelist, syscall_blacklist);
                 if (r < 0)
                         return r;
 

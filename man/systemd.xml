@@ -862,6 +862,8 @@
         </listitem>
       </varlistentry>
 
+      <xi:include href="less-variables.xml" xpointer="lesssecure"/>
+
       <varlistentry>
         <term><varname>$LISTEN_PID</varname></term>
         <term><varname>$LISTEN_FDS</varname></term>

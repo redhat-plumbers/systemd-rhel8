@@ -1464,7 +1464,8 @@ test_dlopen = executable(
         'test-dlopen',
         test_dlopen_c,
         include_directories : includes,
-        link_with : [libbasic],
+        link_with : [libsystemd_static,
+                     libbasic],
         dependencies : [libdl])
 
 foreach tuple : [['myhostname', 'ENABLE_NSS_MYHOSTNAME'],

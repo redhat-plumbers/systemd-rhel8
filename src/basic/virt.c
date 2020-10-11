@@ -147,6 +147,7 @@ static int detect_vm_dmi(void) {
                 int id;
         } dmi_vendor_table[] = {
                 { "KVM",           VIRTUALIZATION_KVM       },
+                { "Amazon EC2",          VIRTUALIZATION_AMAZON    },
                 { "QEMU",          VIRTUALIZATION_QEMU      },
                 /* http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1009458 */
                 { "VMware",        VIRTUALIZATION_VMWARE    },
@@ -339,8 +340,8 @@ int detect_vm(void) {
 
         /* We have to use the correct order here:
          *
-         * → First, try to detect Oracle Virtualbox, even if it uses KVM, as well as Xen even if it cloaks as Microsoft
-         *   Hyper-V.
+         * → First, try to detect Oracle Virtualbox and Amazon EC2 Nitro, even if they use KVM, as well as Xen even if
+         *   it cloaks as Microsoft Hyper-V.
          *
          * → Second, try to detect from CPUID, this will report KVM for whatever software is used even if info in DMI is
          *   overwritten.
@@ -348,7 +349,7 @@ int detect_vm(void) {
          * → Third, try to detect from DMI. */
 
         dmi = detect_vm_dmi();
-        if (IN_SET(dmi, VIRTUALIZATION_ORACLE, VIRTUALIZATION_XEN)) {
+        if (IN_SET(dmi, VIRTUALIZATION_ORACLE, VIRTUALIZATION_XEN, VIRTUALIZATION_AMAZON)) {
                 r = dmi;
                 goto finish;
         }
@@ -631,6 +632,7 @@ int running_in_chroot(void) {
 static const char *const virtualization_table[_VIRTUALIZATION_MAX] = {
         [VIRTUALIZATION_NONE] = "none",
         [VIRTUALIZATION_KVM] = "kvm",
+        [VIRTUALIZATION_AMAZON] = "amazon",
         [VIRTUALIZATION_QEMU] = "qemu",
         [VIRTUALIZATION_BOCHS] = "bochs",
         [VIRTUALIZATION_XEN] = "xen",

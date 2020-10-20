@@ -462,10 +462,9 @@ static int insert_data(struct trie *trie, char **match_list, char *line,
         while (isblank(line[0]) && isblank(line[1]))
                 line++;
 
-        if (isempty(line + 1) || isempty(value))
+        if (isempty(line + 1))
                 return log_syntax(NULL, LOG_WARNING, filename, line_number, EINVAL,
-                                  "Empty %s in \"%s=%s\", ignoring",
-                                  isempty(line + 1) ? "key" : "value",
+                                  "Empty key in \"%s=%s\", ignoring",
                                   line, value);
 
         STRV_FOREACH(entry, match_list)

@@ -683,6 +683,8 @@ Manager *manager_free(Manager *m) {
         manager_mdns_stop(m);
         manager_dns_stub_stop(m);
 
+        manager_socket_graveyard_clear(m);
+
         sd_bus_slot_unref(m->prepare_for_sleep_slot);
         sd_bus_unref(m->bus);
 

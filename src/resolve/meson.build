@@ -63,6 +63,8 @@ systemd_resolved_sources = files('''
         resolved-dns-stub.c
         resolved-etc-hosts.h
         resolved-etc-hosts.c
+        resolved-socket-graveyard.c
+        resolved-socket-graveyard.h
 '''.split())
 
 resolvectl_sources = files('''

@@ -20,6 +20,7 @@ typedef struct Manager Manager;
 #include "resolved-dns-stream.h"
 #include "resolved-dns-trust-anchor.h"
 #include "resolved-link.h"
+#include "resolved-socket-graveyard.h"
 
 #define MANAGER_SEARCH_DOMAINS_MAX 32
 #define MANAGER_DNS_SERVERS_MAX 32
@@ -130,6 +131,10 @@ struct Manager {
         sd_event_source *dns_stub_tcp_event_source;
 
         Hashmap *polkit_registry;
+
+        LIST_HEAD(SocketGraveyard, socket_graveyard);
+        SocketGraveyard *socket_graveyard_oldest;
+        size_t n_socket_graveyard;
 };
 
 /* Manager */

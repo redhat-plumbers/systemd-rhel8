@@ -776,10 +776,13 @@ int link_address_new(Link *l, LinkAddress **ret, int family, const union in_addr
         if (!a)
                 return -ENOMEM;
 
-        a->family = family;
-        a->in_addr = *in_addr;
+        *a = (LinkAddress) {
+                .family = family,
+                .in_addr = *in_addr,
+                .link = l,
+                .prefixlen = UCHAR_MAX,
+        };
 
-        a->link = l;
         LIST_PREPEND(addresses, l->addresses, a);
         l->n_addresses++;
 
@@ -1077,7 +1080,8 @@ int link_address_update_rtnl(LinkAddress *a, sd_netlink_message *m) {
         if (r < 0)
                 return r;
 
-        sd_rtnl_message_addr_get_scope(m, &a->scope);
+        (void) sd_rtnl_message_addr_get_prefixlen(m, &a->prefixlen);
+        (void) sd_rtnl_message_addr_get_scope(m, &a->scope);
 
         link_allocate_scopes(a->link);
         link_add_rrs(a->link, false);

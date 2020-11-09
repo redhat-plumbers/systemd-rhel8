@@ -417,6 +417,65 @@ int dns_scope_socket_tcp(DnsScope *s, int family, const union in_addr_union *add
         return dns_scope_socket(s, SOCK_STREAM, family, address, server, port, ret_socket_address);
 }
 
+static DnsScopeMatch match_subnet_reverse_lookups(
+                DnsScope *s,
+                const char *domain,
+                bool exclude_own) {
+
+        union in_addr_union ia;
+        LinkAddress *a;
+        int f, r;
+
+        assert(s);
+        assert(domain);
+
+        /* Checks whether the specified domain is a reverse address domain (i.e. in the .in-addr.arpa or
+         * .ip6.arpa area), and if so, whether the address matches any of the local subnets of the link the
+         * scope is associated with. If so, our scope should consider itself relevant for any lookup in the
+         * domain, since it apparently refers to hosts on this link's subnet.
+         *
+         * If 'exclude_own' is true this will return DNS_SCOPE_NO for any IP addresses assigned locally. This
+         * is useful for LLMNR/mDNS as we never want to look up our own hostname on LLMNR/mDNS but always use
+         * the locally synthesized one. */
+
+        if (!s->link)
+                return _DNS_SCOPE_INVALID; /* No link, hence no local addresses to check */
+
+        r = dns_name_address(domain, &f, &ia);
+        if (r < 0)
+                log_debug_errno(r, "Failed to determine whether '%s' is an address domain: %m", domain);
+        if (r <= 0)
+                return _DNS_SCOPE_INVALID;
+
+        if (s->family != AF_UNSPEC && f != s->family)
+                return _DNS_SCOPE_INVALID; /* Don't look for IPv4 addresses on LLMNR/mDNS over IPv6 and vice versa */
+
+        LIST_FOREACH(addresses, a, s->link->addresses) {
+
+                if (a->family != f)
+                        continue;
+
+                /* Equals our own address? nah, let's not use this scope. The local synthesizer will pick it up for us. */
+                if (exclude_own &&
+                    in_addr_equal(f, &a->in_addr, &ia) > 0)
+                        return DNS_SCOPE_NO;
+
+                if (a->prefixlen == UCHAR_MAX) /* don't know subnet mask */
+                        continue;
+
+                /* Check if the address is in the local subnet */
+                r = in_addr_prefix_covers(f, &a->in_addr, a->prefixlen, &ia);
+                if (r < 0)
+                        log_debug_errno(r, "Failed to determine whether link address covers lookup address '%s': %m", domain);
+                if (r > 0)
+                        /* Note that we only claim zero labels match. This is so that this is at the same
+                         * priority a DNS scope with "." as routing domain is. */
+                        return DNS_SCOPE_YES + 0;
+        }
+
+        return _DNS_SCOPE_INVALID;
+}
+
 DnsScopeMatch dns_scope_good_domain(DnsScope *s, int ifindex, uint64_t flags, const char *domain) {
         DnsSearchDomain *d;
 
@@ -455,6 +514,7 @@ DnsScopeMatch dns_scope_good_domain(DnsScope *s, int ifindex, uint64_t flags, co
 
         case DNS_PROTOCOL_DNS: {
                 DnsServer *dns_server;
+                DnsScopeMatch m;
 
                 /* Never route things to scopes that lack DNS servers */
                 dns_server = dns_scope_get_dns_server(s);
@@ -485,10 +545,23 @@ DnsScopeMatch dns_scope_good_domain(DnsScope *s, int ifindex, uint64_t flags, co
                     dns_name_endswith(domain, "local") == 0)
                         return DNS_SCOPE_MAYBE;
 
+                /* If the IP address to look up matches the local subnet, then implicity synthesizes
+                 * DNS_SCOPE_YES_BASE + 0 on this interface, i.e. preferably resolve IP addresses via the DNS
+                 * server belonging to this interface. */
+                m = match_subnet_reverse_lookups(s, domain, false);
+                if (m >= 0)
+                        return m;
+
                 return DNS_SCOPE_NO;
         }
 
-        case DNS_PROTOCOL_MDNS:
+        case DNS_PROTOCOL_MDNS: {
+                DnsScopeMatch m;
+
+                m = match_subnet_reverse_lookups(s, domain, true);
+                if (m >= 0)
+                        return m;
+
                 if ((s->family == AF_INET && dns_name_endswith(domain, "in-addr.arpa") > 0) ||
                     (s->family == AF_INET6 && dns_name_endswith(domain, "ip6.arpa") > 0) ||
                     (dns_name_endswith(domain, "local") > 0 && /* only resolve names ending in .local via mDNS */
@@ -497,8 +570,15 @@ DnsScopeMatch dns_scope_good_domain(DnsScope *s, int ifindex, uint64_t flags, co
                         return DNS_SCOPE_MAYBE;
 
                 return DNS_SCOPE_NO;
+        }
 
-        case DNS_PROTOCOL_LLMNR:
+        case DNS_PROTOCOL_LLMNR: {
+                DnsScopeMatch m;
+
+                m = match_subnet_reverse_lookups(s, domain, true);
+                if (m >= 0)
+                        return m;
+
                 if ((s->family == AF_INET && dns_name_endswith(domain, "in-addr.arpa") > 0) ||
                     (s->family == AF_INET6 && dns_name_endswith(domain, "ip6.arpa") > 0) ||
                     (dns_name_is_single_label(domain) && /* only resolve single label names via LLMNR */
@@ -507,6 +587,7 @@ DnsScopeMatch dns_scope_good_domain(DnsScope *s, int ifindex, uint64_t flags, co
                         return DNS_SCOPE_MAYBE;
 
                 return DNS_SCOPE_NO;
+        }
 
         default:
                 assert_not_reached("Unknown scope protocol");

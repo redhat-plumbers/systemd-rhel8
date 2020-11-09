@@ -24,6 +24,7 @@ struct LinkAddress {
 
         int family;
         union in_addr_union in_addr;
+        unsigned char prefixlen;
 
         unsigned char flags, scope;
 

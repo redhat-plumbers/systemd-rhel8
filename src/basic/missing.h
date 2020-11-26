@@ -747,10 +747,13 @@ struct input_mask {
 #define IFLA_NUM_RX_QUEUES 32
 #define IFLA_CARRIER 33
 #define IFLA_PHYS_PORT_ID 34
-#define __IFLA_MAX 35
+#endif
+
+#define IFLA_PROP_LIST 52
+#define IFLA_ALT_IFNAME 53
+#define __IFLA_MAX 53
 
 #define IFLA_MAX (__IFLA_MAX - 1)
-#endif
 
 #if !HAVE_IFLA_BOND_AD_INFO
 #define IFLA_BOND_UNSPEC 0
@@ -1045,6 +1048,18 @@ struct input_mask {
 #define RTA_EXPIRES 23
 #endif
 
+#ifndef RTM_NEWLINKPROP
+#define RTM_NEWLINKPROP 108
+#endif
+
+#ifndef RTM_DELLINKPROP
+#define RTM_DELLINKPROP 109
+#endif
+
+#ifndef RTM_GETLINKPROP
+#define RTM_GETLINKPROP 110
+#endif
+
 #ifndef IPV6_UNICAST_IF
 #define IPV6_UNICAST_IF 76
 #endif
@@ -1055,6 +1070,10 @@ struct input_mask {
 
 #ifndef IPV4_MIN_MTU
 #define IPV4_MIN_MTU 68
+#endif
+
+#ifndef ALTIFNAMSIZ
+#define ALTIFNAMSIZ 128
 #endif
 
 #ifndef IFF_MULTI_QUEUE

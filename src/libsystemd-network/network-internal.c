@@ -183,7 +183,7 @@ int config_parse_net_condition(const char *unit,
         return 0;
 }
 
-int config_parse_ifnames(
+int config_parse_match_ifnames(
                 const char *unit,
                 const char *filename,
                 unsigned line,

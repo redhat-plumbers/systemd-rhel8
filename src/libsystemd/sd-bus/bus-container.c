@@ -44,7 +44,7 @@ int bus_container_connect_socket(sd_bus *b) {
 
         bus_socket_setup(b);
 
-        if (socketpair(AF_UNIX, SOCK_SEQPACKET, 0, pair) < 0)
+        if (socketpair(AF_UNIX, SOCK_SEQPACKET|SOCK_CLOEXEC, 0, pair) < 0)
                 return -errno;
 
         r = safe_fork("(sd-buscntr)", FORK_RESET_SIGNALS|FORK_DEATHSIG, &child);

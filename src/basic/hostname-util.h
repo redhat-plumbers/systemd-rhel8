@@ -11,10 +11,13 @@ bool hostname_is_set(void);
 char* gethostname_malloc(void);
 int gethostname_strict(char **ret);
 
-bool hostname_is_valid(const char *s, bool allow_trailing_dot) _pure_;
-char* hostname_cleanup(char *s);
+typedef enum ValidHostnameFlags {
+        VALID_HOSTNAME_TRAILING_DOT = 1 << 0,   /* Accept trailing dot on multi-label names */
+        VALID_HOSTNAME_DOT_HOST     = 1 << 1,   /* Accept ".host" as valid hostname */
+} ValidHostnameFlags;
 
-#define machine_name_is_valid(s) hostname_is_valid(s, false)
+bool hostname_is_valid(const char *s, ValidHostnameFlags flags) _pure_;
+char* hostname_cleanup(char *s);
 
 bool is_localhost(const char *hostname);
 bool is_gateway_hostname(const char *hostname);

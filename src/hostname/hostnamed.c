@@ -403,7 +403,7 @@ static int method_set_hostname(sd_bus_message *m, void *userdata, sd_bus_error *
         if (isempty(name))
                 name = FALLBACK_HOSTNAME;
 
-        if (!hostname_is_valid(name, false))
+        if (!hostname_is_valid(name, 0))
                 return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS, "Invalid hostname '%s'", name);
 
         if (streq_ptr(name, c->data[PROP_HOSTNAME]))
@@ -458,7 +458,7 @@ static int method_set_static_hostname(sd_bus_message *m, void *userdata, sd_bus_
         if (streq_ptr(name, c->data[PROP_STATIC_HOSTNAME]))
                 return sd_bus_reply_method_return(m, NULL);
 
-        if (!isempty(name) && !hostname_is_valid(name, false))
+        if (!isempty(name) && !hostname_is_valid(name, 0))
                 return sd_bus_error_setf(error, SD_BUS_ERROR_INVALID_ARGS, "Invalid static hostname '%s'", name);
 
         r = bus_verify_polkit_async(

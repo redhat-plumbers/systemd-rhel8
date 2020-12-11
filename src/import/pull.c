@@ -72,7 +72,7 @@ static int pull_tar(int argc, char *argv[], void *userdata) {
 
                 local = ll;
 
-                if (!machine_name_is_valid(local)) {
+                if (!hostname_is_valid(local, 0)) {
                         log_error("Local image name '%s' is not valid.", local);
                         return -EINVAL;
                 }
@@ -159,7 +159,7 @@ static int pull_raw(int argc, char *argv[], void *userdata) {
 
                 local = ll;
 
-                if (!machine_name_is_valid(local)) {
+                if (!hostname_is_valid(local, 0)) {
                         log_error("Local image name '%s' is not valid.", local);
                         return -EINVAL;
                 }

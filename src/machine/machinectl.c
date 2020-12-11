@@ -1705,7 +1705,7 @@ static int make_service_name(const char *name, char **ret) {
         assert(name);
         assert(ret);
 
-        if (!machine_name_is_valid(name)) {
+        if (!hostname_is_valid(name, 0)) {
                 log_error("Invalid machine name %s.", name);
                 return -EINVAL;
         }
@@ -2028,7 +2028,7 @@ static int import_tar(int argc, char *argv[], void *userdata) {
 
         local = ll;
 
-        if (!machine_name_is_valid(local)) {
+        if (!hostname_is_valid(local, 0)) {
                 log_error("Local name %s is not a suitable machine name.", local);
                 return -EINVAL;
         }
@@ -2095,7 +2095,7 @@ static int import_raw(int argc, char *argv[], void *userdata) {
 
         local = ll;
 
-        if (!machine_name_is_valid(local)) {
+        if (!hostname_is_valid(local, 0)) {
                 log_error("Local name %s is not a suitable machine name.", local);
                 return -EINVAL;
         }
@@ -2154,7 +2154,7 @@ static int export_tar(int argc, char *argv[], void *userdata) {
         assert(bus);
 
         local = argv[1];
-        if (!machine_name_is_valid(local)) {
+        if (!hostname_is_valid(local, 0)) {
                 log_error("Machine name %s is not valid.", local);
                 return -EINVAL;
         }
@@ -2204,7 +2204,7 @@ static int export_raw(int argc, char *argv[], void *userdata) {
         assert(bus);
 
         local = argv[1];
-        if (!machine_name_is_valid(local)) {
+        if (!hostname_is_valid(local, 0)) {
                 log_error("Machine name %s is not valid.", local);
                 return -EINVAL;
         }
@@ -2279,7 +2279,7 @@ static int pull_tar(int argc, char *argv[], void *userdata) {
 
                 local = ll;
 
-                if (!machine_name_is_valid(local)) {
+                if (!hostname_is_valid(local, 0)) {
                         log_error("Local name %s is not a suitable machine name.", local);
                         return -EINVAL;
                 }
@@ -2343,7 +2343,7 @@ static int pull_raw(int argc, char *argv[], void *userdata) {
 
                 local = ll;
 
-                if (!machine_name_is_valid(local)) {
+                if (!hostname_is_valid(local, 0)) {
                         log_error("Local name %s is not a suitable machine name.", local);
                         return -EINVAL;
                 }

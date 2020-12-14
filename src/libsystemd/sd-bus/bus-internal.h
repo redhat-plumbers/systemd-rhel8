@@ -401,7 +401,7 @@ void bus_close_io_fds(sd_bus *b);
 int bus_set_address_system(sd_bus *bus);
 int bus_set_address_user(sd_bus *bus);
 int bus_set_address_system_remote(sd_bus *b, const char *host);
-int bus_set_address_system_machine(sd_bus *b, const char *machine);
+int bus_set_address_machine(sd_bus *b, bool user, const char *machine);
 
 int bus_get_root_path(sd_bus *bus);
 

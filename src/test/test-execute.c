@@ -798,6 +798,13 @@ int main(int argc, char *argv[]) {
         log_parse_environment();
         log_open();
 
+#if HAS_FEATURE_ADDRESS_SANITIZER
+        if (strstr_ptr(ci_environment(), "travis") || strstr_ptr(ci_environment(), "github-actions")) {
+                log_notice("Running on Travis CI/GH Actions under ASan, skipping, see https://github.com/systemd/systemd/issues/10696");
+                return EXIT_TEST_SKIP;
+        }
+#endif
+
         (void) unsetenv("USER");
         (void) unsetenv("LOGNAME");
         (void) unsetenv("SHELL");

@@ -697,6 +697,11 @@ static void test_send_emptydata(void) {
         assert_se(fd == -999);
 }
 
+static void test_ipv6_enabled(void) {
+        log_info("IPv6 supported: %s", yes_no(socket_ipv6_is_supported()));
+        log_info("IPv6 enabled: %s", yes_no(socket_ipv6_is_enabled()));
+}
+
 int main(int argc, char *argv[]) {
 
         log_set_max_level(LOG_DEBUG);
@@ -730,6 +735,7 @@ int main(int argc, char *argv[]) {
         test_receive_nopassfd();
         test_send_nodata_nofd();
         test_send_emptydata();
+        test_ipv6_enabled();
 
         return 0;
 }

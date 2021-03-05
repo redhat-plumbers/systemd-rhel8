@@ -99,6 +99,7 @@ bool socket_address_equal(const SocketAddress *a, const SocketAddress *b) _pure_
 const char* socket_address_get_path(const SocketAddress *a);
 
 bool socket_ipv6_is_supported(void);
+bool socket_ipv6_is_enabled(void);
 
 int sockaddr_port(const struct sockaddr *_sa, unsigned *port);
 

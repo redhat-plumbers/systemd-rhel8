@@ -86,8 +86,6 @@ shared_sources = files('''
         specifier.h
         switch-root.c
         switch-root.h
-        sysctl-util.c
-        sysctl-util.h
         tests.c
         tests.h
         tomoyo-util.c

@@ -126,6 +126,7 @@ typedef enum NamingSchemeFlags {
         NAMING_SR_IOV_V        = 1 << 0, /* Use "v" suffix for SR-IOV, see 609948c7043a40008b8299529c978ed8e11de8f6*/
         NAMING_NPAR_ARI        = 1 << 1, /* Use NPAR "ARI", see 6bc04997b6eab35d1cb9fa73889892702c27be09 */
         NAMING_BRIDGE_NO_SLOT  = 1 << 9, /* Don't use PCI hotplug slot information if the corresponding device is a PCI bridge */
+        NAMING_SLOT_FUNCTION_ID = 1 << 10, /* Use function_id if present to identify PCI hotplug slots */
 
         /* And now the masks that combine the features above */
         NAMING_V238 = 0,
@@ -137,6 +138,7 @@ typedef enum NamingSchemeFlags {
         NAMING_RHEL_8_4 = NAMING_V239|NAMING_BRIDGE_NO_SLOT,
         NAMING_RHEL_8_5 = NAMING_RHEL_8_4,
         NAMING_RHEL_8_6 = NAMING_RHEL_8_4,
+        NAMING_RHEL_8_7 = NAMING_RHEL_8_4|NAMING_SLOT_FUNCTION_ID,
 
         _NAMING_SCHEME_FLAGS_INVALID = -1,
 } NamingSchemeFlags;
@@ -156,6 +158,7 @@ static const NamingScheme naming_schemes[] = {
         { "rhel-8.4", NAMING_RHEL_8_4 },
         { "rhel-8.5", NAMING_RHEL_8_5 },
         { "rhel-8.6", NAMING_RHEL_8_6 },
+        { "rhel-8.7", NAMING_RHEL_8_7 },
         /* … add more schemes here, as the logic to name devices is updated … */
 };
 
@@ -477,6 +480,37 @@ static int dev_pci_slot(struct udev_device *dev, struct netnames *names) {
 
         hotplug_slot_dev = names->pcidev;
         while (hotplug_slot_dev) {
+                if (!udev_device_get_sysname(hotplug_slot_dev))
+                        continue;
+
+                /*  The <sysname>/function_id attribute is unique to the s390 PCI driver.
+                    If present, we know that the slot's directory name for this device is
+                    /sys/bus/pci/XXXXXXXX/ where XXXXXXXX is the fixed length 8 hexadecimal
+                    character string representation of function_id.
+                    Therefore we can short cut here and just check for the existence of
+                    the slot directory. As this directory has to exist, we're emitting a
+                    debug message for the unlikely case it's not found.
+                    Note that the domain part of doesn't belong to the slot name here
+                    because there's a 1-to-1 relationship between PCI function and its hotplug
+                    slot.
+                 */
+                if (naming_scheme_has(NAMING_SLOT_FUNCTION_ID)) {
+                        attr = udev_device_get_sysattr_value(hotplug_slot_dev, "function_id");
+                        if (attr) {
+                                int function_id;
+                                _cleanup_free_ char *str;
+
+                                if (safe_atoi(attr, &function_id) >= 0 &&
+                                    asprintf(&str, "%s/%08x/", slots, function_id) >= 0 &&
+                                    access(str, R_OK) == 0) {
+                                        hotplug_slot = function_id;
+                                        domain = 0;
+                                } else
+                                        log_debug("No matching slot for function_id (%s).", attr);
+                                break;
+                        }
+                }
+
                 FOREACH_DIRENT_ALL(dent, dir, break) {
                         int i, r;
                         char str[PATH_MAX];

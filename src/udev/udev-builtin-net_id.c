@@ -498,7 +498,7 @@ static int dev_pci_slot(struct udev_device *dev, struct netnames *names) {
                         attr = udev_device_get_sysattr_value(hotplug_slot_dev, "function_id");
                         if (attr) {
                                 int function_id;
-                                _cleanup_free_ char *str;
+                                _cleanup_free_ char *str = NULL;
 
                                 if (safe_atoi(attr, &function_id) >= 0 &&
                                     asprintf(&str, "%s/%08x/", slots, function_id) >= 0 &&

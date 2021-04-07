@@ -60,8 +60,8 @@ journalctl -b -o export --output-fields=MESSAGE,FOO --output-fields=PRIORITY,MES
 grep -q '^__CURSOR=' /output
 grep -q '^MESSAGE=foo$' /output
 grep -q '^PRIORITY=6$' /output
-! grep -q '^FOO=' /output
-! grep -q '^SYSLOG_FACILITY=' /output
+grep '^FOO=' /output && { echo 'unexpected success'; exit 1; }
+grep '^SYSLOG_FACILITY=' /output && { echo 'unexpected success'; exit 1; }
 
 # https://github.com/systemd/systemd/issues/13708
 ID=$(journalctl --new-id128 | sed -n 2p)

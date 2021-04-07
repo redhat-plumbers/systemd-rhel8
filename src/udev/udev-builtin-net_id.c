@@ -502,7 +502,7 @@ static int dev_pci_slot(struct udev_device *dev, struct netnames *names) {
 
                                 if (safe_atoi(attr, &function_id) >= 0 &&
                                     asprintf(&str, "%s/%08x/", slots, function_id) >= 0 &&
-                                    access(str, R_OK) == 0) {
+                                    access(str, F_OK) == 0) {
                                         hotplug_slot = function_id;
                                         domain = 0;
                                 } else

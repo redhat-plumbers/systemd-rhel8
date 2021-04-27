@@ -104,7 +104,8 @@
 #include "udev.h"
 #include "udev-util.h"
 
-#define ONBOARD_INDEX_MAX (16*1024-1)
+#define ONBOARD_14BIT_INDEX_MAX ((1U << 14) - 1)
+#define ONBOARD_16BIT_INDEX_MAX ((1U << 16) - 1)
 
 /* So here's the deal: net_id is supposed to be an excercise in providing stable names for network devices. However, we
  * also want to keep updating the naming scheme used in future versions of net_id. These two goals of course are
@@ -127,6 +128,7 @@ typedef enum NamingSchemeFlags {
         NAMING_NPAR_ARI        = 1 << 1, /* Use NPAR "ARI", see 6bc04997b6eab35d1cb9fa73889892702c27be09 */
         NAMING_BRIDGE_NO_SLOT  = 1 << 9, /* Don't use PCI hotplug slot information if the corresponding device is a PCI bridge */
         NAMING_SLOT_FUNCTION_ID = 1 << 10, /* Use function_id if present to identify PCI hotplug slots */
+        NAMING_16BIT_INDEX      = 1 << 11, /* Allow full 16-bit for the onboard index */
 
         /* And now the masks that combine the features above */
         NAMING_V238 = 0,
@@ -138,7 +140,7 @@ typedef enum NamingSchemeFlags {
         NAMING_RHEL_8_4 = NAMING_V239|NAMING_BRIDGE_NO_SLOT,
         NAMING_RHEL_8_5 = NAMING_RHEL_8_4,
         NAMING_RHEL_8_6 = NAMING_RHEL_8_4,
-        NAMING_RHEL_8_7 = NAMING_RHEL_8_4|NAMING_SLOT_FUNCTION_ID,
+        NAMING_RHEL_8_7 = NAMING_RHEL_8_4|NAMING_SLOT_FUNCTION_ID|NAMING_16BIT_INDEX,
 
         _NAMING_SCHEME_FLAGS_INVALID = -1,
 } NamingSchemeFlags;
@@ -326,6 +328,16 @@ out_unref:
         return r;
 }
 
+static bool is_valid_onboard_index(unsigned long idx) {
+        /* Some BIOSes report rubbish indexes that are excessively high (2^24-1 is an index VMware likes to
+         * report for example). Let's define a cut-off where we don't consider the index reliable anymore. We
+         * pick some arbitrary cut-off, which is somewhere beyond the realistic number of physical network
+         * interface a system might have. Ideally the kernel would already filter this crap for us, but it
+         * doesn't currently. The initial cut-off value (2^14-1) was too conservative for s390 PCI which
+         * allows for index values up 2^16-1 which is now enabled with the NAMING_16BIT_INDEX naming flag. */
+        return idx <= (naming_scheme_has(NAMING_16BIT_INDEX) ? ONBOARD_16BIT_INDEX_MAX : ONBOARD_14BIT_INDEX_MAX);
+}
+
 /* retrieve on-board index number and label from firmware */
 static int dev_pci_onboard(struct udev_device *dev, struct netnames *names) {
         unsigned dev_port = 0;
@@ -346,11 +358,7 @@ static int dev_pci_onboard(struct udev_device *dev, struct netnames *names) {
         if (idx <= 0)
                 return -EINVAL;
 
-        /* Some BIOSes report rubbish indexes that are excessively high (2^24-1 is an index VMware likes to report for
-         * example). Let's define a cut-off where we don't consider the index reliable anymore. We pick some arbitrary
-         * cut-off, which is somewhere beyond the realistic number of physical network interface a system might
-         * have. Ideally the kernel would already filter his crap for us, but it doesn't currently. */
-        if (idx > ONBOARD_INDEX_MAX)
+        if (!is_valid_onboard_index(idx))
                 return -ENOENT;
 
         /* kernel provided port index for multiple ports on a single PCI function */

@@ -8,6 +8,7 @@ SUBSYSTEM!="memory", GOTO="memory_hotplug_end"
 ACTION!="add", GOTO="memory_hotplug_end"
 CONST{arch}=="s390*", GOTO="memory_hotplug_end"
 CONST{arch}=="ppc64*", GOTO="memory_hotplug_end"
+ATTRS{auto_online_blocks}=="offline", GOTO="memory_hotplug_end"
 
 ENV{.state}="online"
 CONST{virt}=="none", ENV{.state}="online_movable"

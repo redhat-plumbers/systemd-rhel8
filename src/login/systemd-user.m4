@@ -2,7 +2,7 @@
 #
 # Used by systemd --user instances.
 
-account required pam_unix.so
+account sufficient pam_unix.so no_pass_expiry
 m4_ifdef(`HAVE_SELINUX',
 session required pam_selinux.so close
 session required pam_selinux.so nottys open

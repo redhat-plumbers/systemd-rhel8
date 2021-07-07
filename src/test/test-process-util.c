@@ -19,6 +19,7 @@
 #include "macro.h"
 #include "parse-util.h"
 #include "process-util.h"
+#include "procfs-util.h"
 #include "signal-util.h"
 #include "stdio-util.h"
 #include "string-util.h"
@@ -56,9 +57,12 @@ static void test_get_process_comm(pid_t pid) {
         assert_se(get_process_cmdline(pid, 1, false, &d) >= 0);
         log_info("PID"PID_FMT" cmdline truncated to 1: '%s'", pid, d);
 
-        assert_se(get_process_ppid(pid, &e) >= 0);
-        log_info("PID"PID_FMT" PPID: "PID_FMT, pid, e);
-        assert_se(pid == 1 ? e == 0 : e > 0);
+        r = get_process_ppid(pid, &e);
+        assert_se(pid == 1 ? r == -EADDRNOTAVAIL : r >= 0);
+        if (r >= 0) {
+                log_info("PID"PID_FMT" PPID: "PID_FMT, pid, e);
+                assert_se(e > 0);
+        }
 
         assert_se(is_kernel_thread(pid) == 0 || pid != 1);
 
@@ -585,6 +589,43 @@ static void test_ioprio_class_from_to_string(void) {
         test_ioprio_class_from_to_string_one("-1", -1);
 }
 
+static void test_get_process_ppid(void) {
+        uint64_t limit;
+        int r;
+
+        log_info("/* %s */", __func__);
+
+        assert_se(get_process_ppid(1, NULL) == -EADDRNOTAVAIL);
+
+        /* the process with the PID above the global limit definitely doesn't exist. Verify that */
+        assert_se(procfs_tasks_get_limit(&limit) >= 0);
+        assert_se(limit >= INT_MAX || get_process_ppid(limit+1, NULL) == -ESRCH);
+
+        for (pid_t pid = 0;;) {
+                _cleanup_free_ char *c1 = NULL, *c2 = NULL;
+                pid_t ppid;
+
+                r = get_process_ppid(pid, &ppid);
+                if (r == -EADDRNOTAVAIL) {
+                        log_info("No further parent PID");
+                        break;
+                }
+
+                assert_se(r >= 0);
+
+                /* NOTE: The size is SIZE_MAX in the original commit, but it would require backporting a
+                 * lot more stuff to support that (the current version of get_process_cmdline() just fails with
+                 * ENOMEM). UINT16_MAX should be enough for practical purposes.
+                 */
+                assert_se(get_process_cmdline(pid, UINT16_MAX, true, &c1) >= 0);
+                assert_se(get_process_cmdline(ppid, UINT16_MAX, true, &c2) >= 0);
+
+                log_info("Parent of " PID_FMT " (%s) is " PID_FMT " (%s).", pid, c1, ppid, c2);
+
+                pid = ppid;
+        }
+}
+
 int main(int argc, char *argv[]) {
         log_set_max_level(LOG_DEBUG);
         log_parse_environment();
@@ -614,6 +655,7 @@ int main(int argc, char *argv[]) {
         test_safe_fork();
         test_pid_to_ptr();
         test_ioprio_class_from_to_string();
+        test_get_process_ppid();
 
         return 0;
 }

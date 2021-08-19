@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-2.1+
 
 hwdb_files = files('''
+        20-dmi-id.hwdb
         20-pci-vendor-model.hwdb
         20-pci-classes.hwdb
         20-usb-vendor-model.hwdb
@@ -12,13 +13,17 @@ hwdb_files = files('''
         20-OUI.hwdb
         20-net-ifname.hwdb
         20-vmbus-class.hwdb
+        60-autosuspend-fingerprint-reader.hwdb
+        60-autosuspend.hwdb
         60-evdev.hwdb
         60-keyboard.hwdb
+        60-seat.hwdb
         60-sensor.hwdb
         70-joystick.hwdb
         70-mouse.hwdb
         70-pointingstick.hwdb
         70-touchpad.hwdb
+        80-ieee1394-unit-function.hwdb
 '''.split())
 
 if conf.get('ENABLE_HWDB') == 1

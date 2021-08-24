@@ -42,6 +42,9 @@ EOF
 [Unit]
 Requires=test.socket
 ConditionPathExistsGlob=/tmp/nonexistent
+# Make sure we hit the socket trigger limit in the test and not the service start limit.
+StartLimitInterval=1000
+StartLimitBurst=1000
 
 [Service]
 ExecStart=/bin/true

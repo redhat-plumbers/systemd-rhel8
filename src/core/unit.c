@@ -1728,10 +1728,16 @@ int unit_start(Unit *u) {
 
         assert(u);
 
-        /* If this is already started, then this will succeed. Note
-         * that this will even succeed if this unit is not startable
-         * by the user. This is relied on to detect when we need to
-         * wait for units and when waiting is finished. */
+        /* Check start rate limiting early so that failure conditions don't cause us to enter a busy loop. */
+        if (UNIT_VTABLE(u)->test_start_limit) {
+                int r = UNIT_VTABLE(u)->test_start_limit(u);
+                if (r < 0)
+                        return r;
+        }
+
+        /* If this is already started, then this will succeed. Note that this will even succeed if this unit
+         * is not startable by the user. This is relied on to detect when we need to wait for units and when
+         * waiting is finished. */
         state = unit_active_state(u);
         if (UNIT_IS_ACTIVE_OR_RELOADING(state))
                 return -EALREADY;

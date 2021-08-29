@@ -1443,6 +1443,7 @@ static int mount_setup_new_unit(
                 MountSetupFlags *flags) {
 
         MountParameters *p;
+        int r;
 
         assert(u);
         assert(flags);
@@ -1464,7 +1465,6 @@ static int mount_setup_new_unit(
 
         if (!mount_is_extrinsic(MOUNT(u))) {
                 const char *target;
-                int r;
 
                 target = mount_is_network(p) ? SPECIAL_REMOTE_FS_TARGET : SPECIAL_LOCAL_FS_TARGET;
                 r = unit_add_dependency_by_name(u, UNIT_BEFORE, target, NULL, true, UNIT_DEPENDENCY_MOUNTINFO_IMPLICIT);
@@ -1475,6 +1475,10 @@ static int mount_setup_new_unit(
                 if (r < 0)
                         return r;
         }
+
+        r = mount_add_non_exec_dependencies(MOUNT(u));
+        if (r < 0)
+                return r;
 
         unit_add_to_load_queue(u);
         flags->is_mounted = true;

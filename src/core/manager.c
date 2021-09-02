@@ -3554,6 +3554,11 @@ int manager_reload(Manager *m) {
         /* Let's finally catch up with any changes that took place while we were reloading/reexecing */
         manager_catchup(m);
 
+        /* Create a file which will indicate when the manager started loading units the last time. */
+        (void) touch_file("/run/systemd/systemd-units-load", false,
+                m->timestamps[MANAGER_TIMESTAMP_UNITS_LOAD].realtime ?: now(CLOCK_REALTIME),
+                UID_INVALID, GID_INVALID, 0444);
+
         /* Sync current state of bus names with our set of listening units */
         q = manager_enqueue_sync_bus_names(m);
         if (q < 0 && r >= 0)

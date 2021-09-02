@@ -1580,6 +1580,7 @@ static void manager_preset_all(Manager *m) {
 
 void manager_reloading_start(Manager *m) {
         m->n_reloading++;
+        dual_timestamp_get(m->timestamps + MANAGER_TIMESTAMP_UNITS_LOAD);
 }
 
 int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
@@ -4622,6 +4623,7 @@ static const char *const manager_timestamp_table[_MANAGER_TIMESTAMP_MAX] = {
         [MANAGER_TIMESTAMP_GENERATORS_FINISH] = "generators-finish",
         [MANAGER_TIMESTAMP_UNITS_LOAD_START] = "units-load-start",
         [MANAGER_TIMESTAMP_UNITS_LOAD_FINISH] = "units-load-finish",
+        [MANAGER_TIMESTAMP_UNITS_LOAD]               = "units-load",
 };
 
 DEFINE_STRING_TABLE_LOOKUP(manager_timestamp, ManagerTimestamp);

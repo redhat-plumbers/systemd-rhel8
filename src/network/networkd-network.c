@@ -479,7 +479,7 @@ int network_get(Manager *manager, struct udev_device *device,
                                      network->match_virt, network->match_kernel_cmdline,
                                      network->match_kernel_version, network->match_arch,
                                      address, path, parent_driver, driver,
-                                     devtype, ifname)) {
+                                     devtype, ifname, NULL)) {
                         if (network->match_name && device) {
                                 const char *attr;
                                 uint8_t name_assign_type = NET_NAME_UNKNOWN;

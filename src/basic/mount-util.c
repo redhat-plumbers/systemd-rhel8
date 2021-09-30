@@ -139,6 +139,19 @@ static int fd_fdinfo_mnt_id(int fd, const char *filename, int flags, int *mnt_id
         return safe_atoi(p, mnt_id);
 }
 
+static bool is_name_to_handle_at_fatal_error(int err) {
+        /* name_to_handle_at() can return "acceptable" errors that are due to the context. For
+         * example the kernel does not support name_to_handle_at() at all (ENOSYS), or the syscall
+         * was blocked (EACCES/EPERM; maybe through seccomp, because we are running inside of a
+         * container), or the mount point is not triggered yet (EOVERFLOW, think nfs4), or some
+         * general name_to_handle_at() flakiness (EINVAL). However other errors are not supposed to
+         * happen and therefore are considered fatal ones. */
+
+        assert(err < 0);
+
+        return !IN_SET(err, -EOPNOTSUPP, -ENOSYS, -EACCES, -EPERM, -EOVERFLOW, -EINVAL);
+}
+
 int fd_is_mount_point(int fd, const char *filename, int flags) {
         _cleanup_free_ struct file_handle *h = NULL, *h_parent = NULL;
         int mount_id = -1, mount_id_parent = -1;
@@ -173,42 +186,40 @@ int fd_is_mount_point(int fd, const char *filename, int flags) {
          * real mounts of their own. */
 
         r = name_to_handle_at_loop(fd, filename, &h, &mount_id, flags);
-        if (IN_SET(r, -ENOSYS, -EACCES, -EPERM, -EOVERFLOW, -EINVAL))
-                /* This kernel does not support name_to_handle_at() at all (ENOSYS), or the syscall was blocked
-                 * (EACCES/EPERM; maybe through seccomp, because we are running inside of a container?), or the mount
-                 * point is not triggered yet (EOVERFLOW, think nfs4), or some general name_to_handle_at() flakiness
-                 * (EINVAL): fall back to simpler logic. */
-                goto fallback_fdinfo;
-        else if (r == -EOPNOTSUPP)
-                /* This kernel or file system does not support name_to_handle_at(), hence let's see if the upper fs
-                 * supports it (in which case it is a mount point), otherwise fallback to the traditional stat()
-                 * logic */
+        if (r < 0) {
+                if (is_name_to_handle_at_fatal_error(r))
+                        return r;
+                if (r != -EOPNOTSUPP)
+                        goto fallback_fdinfo;
+
+                /* This kernel or file system does not support name_to_handle_at(), hence let's see
+                 * if the upper fs supports it (in which case it is a mount point), otherwise fall
+                 * back to the traditional stat() logic */
                 nosupp = true;
-        else if (r < 0)
-                return r;
+        }
 
         r = name_to_handle_at_loop(fd, "", &h_parent, &mount_id_parent, AT_EMPTY_PATH);
-        if (r == -EOPNOTSUPP) {
-                if (nosupp)
-                        /* Neither parent nor child do name_to_handle_at()?  We have no choice but to fall back. */
+        if (r < 0) {
+                if (is_name_to_handle_at_fatal_error(r))
+                        return r;
+                if (r != -EOPNOTSUPP)
                         goto fallback_fdinfo;
-                else
-                        /* The parent can't do name_to_handle_at() but the directory we are interested in can?  If so,
-                         * it must be a mount point. */
-                        return 1;
-        } else if (r < 0)
-                return r;
+                if (nosupp)
+                        /* Both the parent and the directory can't do name_to_handle_at() */
+                        goto fallback_fdinfo;
 
-        /* The parent can do name_to_handle_at() but the
-         * directory we are interested in can't? If so, it
-         * must be a mount point. */
+                /* The parent can't do name_to_handle_at() but the directory we are
+                 * interested in can?  If so, it must be a mount point. */
+                return 1;
+        }
+
+        /* The parent can do name_to_handle_at() but the directory we are interested in can't? If
+         * so, it must be a mount point. */
         if (nosupp)
                 return 1;
 
-        /* If the file handle for the directory we are
-         * interested in and its parent are identical, we
-         * assume this is the root directory, which is a mount
-         * point. */
+        /* If the file handle for the directory we are interested in and its parent are identical,
+         * we assume this is the root directory, which is a mount point. */
 
         if (h->handle_bytes == h_parent->handle_bytes &&
             h->handle_type == h_parent->handle_type &&
@@ -300,10 +311,10 @@ int path_get_mnt_id(const char *path, int *ret) {
         int r;
 
         r = name_to_handle_at_loop(AT_FDCWD, path, NULL, ret, 0);
-        if (IN_SET(r, -EOPNOTSUPP, -ENOSYS, -EACCES, -EPERM, -EOVERFLOW, -EINVAL)) /* kernel/fs don't support this, or seccomp blocks access, or untriggered mount, or name_to_handle_at() is flaky */
-                return fd_fdinfo_mnt_id(AT_FDCWD, path, 0, ret);
+        if (r == 0 || is_name_to_handle_at_fatal_error(r))
+                return r;
 
-        return r;
+        return fd_fdinfo_mnt_id(AT_FDCWD, path, 0, ret);
 }
 
 int umount_recursive(const char *prefix, int flags) {

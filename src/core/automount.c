@@ -1071,7 +1071,7 @@ static bool automount_supported(void) {
         return supported;
 }
 
-static int automount_test_start_limit(Unit *u) {
+static int automount_can_start(Unit *u) {
         Automount *a = AUTOMOUNT(u);
         int r;
 
@@ -1083,7 +1083,7 @@ static int automount_test_start_limit(Unit *u) {
                 return r;
         }
 
-        return 0;
+        return 1;
 }
 
 static const char* const automount_result_table[_AUTOMOUNT_RESULT_MAX] = {
@@ -1145,5 +1145,5 @@ const UnitVTable automount_vtable = {
                 },
         },
 
-        .test_start_limit = automount_test_start_limit,
+        .can_start = automount_can_start,
 };

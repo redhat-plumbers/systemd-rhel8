@@ -3261,7 +3261,7 @@ static int socket_control_pid(Unit *u) {
         return s->control_pid;
 }
 
-static int socket_test_start_limit(Unit *u) {
+static int socket_can_start(Unit *u) {
         Socket *s = SOCKET(u);
         int r;
 
@@ -3273,7 +3273,7 @@ static int socket_test_start_limit(Unit *u) {
                 return r;
         }
 
-        return 0;
+        return 1;
 }
 
 static const char* const socket_exec_command_table[_SOCKET_EXEC_COMMAND_MAX] = {
@@ -3369,5 +3369,5 @@ const UnitVTable socket_vtable = {
                 },
         },
 
-        .test_start_limit = socket_test_start_limit,
+        .can_start = socket_can_start,
 };

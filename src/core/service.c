@@ -4043,7 +4043,7 @@ static bool service_needs_console(Unit *u) {
                       SERVICE_FINAL_SIGKILL);
 }
 
-static int service_test_start_limit(Unit *u) {
+static int service_can_start(Unit *u) {
         Service *s = SERVICE(u);
         int r;
 
@@ -4056,7 +4056,7 @@ static int service_test_start_limit(Unit *u) {
                 return r;
         }
 
-        return 0;
+        return 1;
 }
 
 static const char* const service_restart_table[_SERVICE_RESTART_MAX] = {
@@ -4201,5 +4201,5 @@ const UnitVTable service_vtable = {
                 },
         },
 
-        .test_start_limit = service_test_start_limit,
+        .can_start = service_can_start,
 };

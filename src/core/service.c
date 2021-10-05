@@ -536,6 +536,18 @@ static int service_verify(Service *s) {
         if (UNIT(s)->load_state != UNIT_LOADED)
                 return 0;
 
+        for (ServiceExecCommand c = 0; c < _SERVICE_EXEC_COMMAND_MAX; c++) {
+                ExecCommand *command;
+
+                LIST_FOREACH(command, command, s->exec_command[c])
+                        if (strv_isempty(command->argv)) {
+                                log_unit_error(UNIT(s),
+                                               "Service has an empty argv in %s=. Refusing.",
+                                               service_exec_command_to_string(c));
+                                return -ENOEXEC;
+                        }
+        }
+
         if (!s->exec_command[SERVICE_EXEC_START] && !s->exec_command[SERVICE_EXEC_STOP]) {
                 log_unit_error(UNIT(s), "Service lacks both ExecStart= and ExecStop= setting. Refusing.");
                 return -ENOEXEC;

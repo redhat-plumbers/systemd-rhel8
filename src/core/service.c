@@ -539,13 +539,21 @@ static int service_verify(Service *s) {
         for (ServiceExecCommand c = 0; c < _SERVICE_EXEC_COMMAND_MAX; c++) {
                 ExecCommand *command;
 
-                LIST_FOREACH(command, command, s->exec_command[c])
+                LIST_FOREACH(command, command, s->exec_command[c]) {
+                        if (!path_is_absolute(command->path) && !filename_is_valid(command->path)) {
+                                log_unit_error(UNIT(s),
+                                               "Service %s= binary path \"%s\" is neither a valid executable name nor an absolute path. Refusing.",
+                                               command->path,
+                                               service_exec_command_to_string(c));
+                                return -ENOEXEC;
+                        }
                         if (strv_isempty(command->argv)) {
                                 log_unit_error(UNIT(s),
                                                "Service has an empty argv in %s=. Refusing.",
                                                service_exec_command_to_string(c));
                                 return -ENOEXEC;
                         }
+                }
         }
 
         if (!s->exec_command[SERVICE_EXEC_START] && !s->exec_command[SERVICE_EXEC_STOP]) {

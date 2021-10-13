@@ -92,7 +92,6 @@ SYSTEMD_BUILD_DEPS=(
         gnutls-devel
         gobject-introspection-devel
         gperf
-        iptables-devel
         kmod-devel
         libacl-devel
         libblkid-devel

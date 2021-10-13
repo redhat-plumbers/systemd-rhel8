@@ -50,7 +50,7 @@ CONFIGURE_OPTS=(
     -Dgnutls=true
     -Dmicrohttpd=true
     -Dlibidn2=true
-    -Dlibiptc=true
+    -Dlibiptc=false
     -Dlibcurl=true
     -Defi=true
     -Dtpm=true
@@ -92,7 +92,6 @@ SYSTEMD_BUILD_DEPS=(
         gnutls-devel
         gobject-introspection-devel
         gperf
-        iptables-devel
         kmod-devel
         libacl-devel
         libblkid-devel

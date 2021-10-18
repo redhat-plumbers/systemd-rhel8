@@ -2272,6 +2272,15 @@ static void socket_enter_running(Socket *s, int cfd) {
                 goto refuse;
         }
 
+        if (UNIT_ISSET(s->service) && cfd < 0) {
+                Unit *service = UNIT_DEREF(s->service);
+
+                if (unit_has_failed_condition_or_assert(service)) {
+                        socket_enter_dead(s, SOCKET_FAILURE_SERVICE_CONDITION_FAILED);
+                        return;
+                }
+        }
+
         if (cfd < 0) {
                 bool pending = false;
                 Unit *other;
@@ -3295,7 +3304,8 @@ static const char* const socket_result_table[_SOCKET_RESULT_MAX] = {
         [SOCKET_FAILURE_CORE_DUMP] = "core-dump",
         [SOCKET_FAILURE_START_LIMIT_HIT] = "start-limit-hit",
         [SOCKET_FAILURE_TRIGGER_LIMIT_HIT] = "trigger-limit-hit",
-        [SOCKET_FAILURE_SERVICE_START_LIMIT_HIT] = "service-start-limit-hit"
+        [SOCKET_FAILURE_SERVICE_START_LIMIT_HIT] = "service-start-limit-hit",
+        [SOCKET_FAILURE_SERVICE_CONDITION_FAILED] = "service-condition-failed",
 };
 
 DEFINE_STRING_TABLE_LOOKUP(socket_result, SocketResult);

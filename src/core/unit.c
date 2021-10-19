@@ -1729,13 +1729,6 @@ int unit_start(Unit *u) {
 
         assert(u);
 
-        /* Check our ability to start early so that failure conditions don't cause us to enter a busy loop. */
-        if (UNIT_VTABLE(u)->can_start) {
-                r = UNIT_VTABLE(u)->can_start(u);
-                if (r < 0)
-                        return r;
-        }
-
         /* If this is already started, then this will succeed. Note that this will even succeed if this unit
          * is not startable by the user. This is relied on to detect when we need to wait for units and when
          * waiting is finished. */
@@ -1788,6 +1781,13 @@ int unit_start(Unit *u) {
         if (following) {
                 log_unit_debug(u, "Redirecting start request from %s to %s.", u->id, following->id);
                 return unit_start(following);
+        }
+
+        /* Check start rate limiting early so that failure conditions don't cause us to enter a busy loop. */
+        if (UNIT_VTABLE(u)->can_start) {
+                r = UNIT_VTABLE(u)->can_start(u);
+                if (r < 0)
+                        return r;
         }
 
         /* If it is stopped, but we cannot start it, then fail */

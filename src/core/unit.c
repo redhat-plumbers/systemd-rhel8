@@ -1725,12 +1725,13 @@ static bool unit_verify_deps(Unit *u) {
 int unit_start(Unit *u) {
         UnitActiveState state;
         Unit *following;
+        int r;
 
         assert(u);
 
         /* Check our ability to start early so that failure conditions don't cause us to enter a busy loop. */
         if (UNIT_VTABLE(u)->can_start) {
-                int r = UNIT_VTABLE(u)->can_start(u);
+                r = UNIT_VTABLE(u)->can_start(u);
                 if (r < 0)
                         return r;
         }

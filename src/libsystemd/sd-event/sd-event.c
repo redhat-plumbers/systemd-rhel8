@@ -2013,25 +2013,25 @@ static int inode_data_realize_watch(sd_event *e, struct inode_data *d) {
         return 1;
 }
 
-_public_ int sd_event_add_inotify(
+static int event_add_inotify_fd_internal(
                 sd_event *e,
                 sd_event_source **ret,
-                const char *path,
+                int fd,
+                bool donate,
                 uint32_t mask,
                 sd_event_inotify_handler_t callback,
                 void *userdata) {
 
+        _cleanup_close_ int donated_fd = donate ? fd : -1;
+        _cleanup_(source_freep) sd_event_source *s = NULL;
         struct inotify_data *inotify_data = NULL;
         struct inode_data *inode_data = NULL;
-        _cleanup_close_ int fd = -1;
-        _cleanup_(source_freep) sd_event_source *s = NULL;
         struct stat st;
         int r;
 
         assert_return(e, -EINVAL);
         assert_return(e = event_resolve(e), -ENOPKG);
-        assert_return(path, -EINVAL);
-        assert_return(callback, -EINVAL);
+        assert_return(fd >= 0, -EBADF);
         assert_return(e->state != SD_EVENT_FINISHED, -ESTALE);
         assert_return(!event_pid_changed(e), -ECHILD);
 
@@ -2040,12 +2040,6 @@ _public_ int sd_event_add_inotify(
          * the user can't use them for us. */
         if (mask & IN_MASK_ADD)
                 return -EINVAL;
-
-        fd = open(path, O_PATH|O_CLOEXEC|
-                  (mask & IN_ONLYDIR ? O_DIRECTORY : 0)|
-                  (mask & IN_DONT_FOLLOW ? O_NOFOLLOW : 0));
-        if (fd < 0)
-                return -errno;
 
         if (fstat(fd, &st) < 0)
                 return -errno;
@@ -2066,14 +2060,24 @@ _public_ int sd_event_add_inotify(
 
         r = event_make_inode_data(e, inotify_data, st.st_dev, st.st_ino, &inode_data);
         if (r < 0) {
-                event_free_inotify_data(e, inotify_data);
+                event_gc_inotify_data(e, inotify_data);
                 return r;
         }
 
         /* Keep the O_PATH fd around until the first iteration of the loop, so that we can still change the priority of
          * the event source, until then, for which we need the original inode. */
         if (inode_data->fd < 0) {
-                inode_data->fd = TAKE_FD(fd);
+                if (donated_fd >= 0)
+                        inode_data->fd = TAKE_FD(donated_fd);
+                else {
+                        inode_data->fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+                        if (inode_data->fd < 0) {
+                                r = -errno;
+                                event_gc_inode_data(e, inode_data);
+                                return r;
+                        }
+                }
+
                 LIST_PREPEND(to_close, e->inode_data_to_close, inode_data);
         }
 
@@ -2086,13 +2090,53 @@ _public_ int sd_event_add_inotify(
         if (r < 0)
                 return r;
 
-        (void) sd_event_source_set_description(s, path);
-
         if (ret)
                 *ret = s;
         TAKE_PTR(s);
 
         return 0;
+}
+
+_public_ int sd_event_add_inotify_fd(
+                sd_event *e,
+                sd_event_source **ret,
+                int fd,
+                uint32_t mask,
+                sd_event_inotify_handler_t callback,
+                void *userdata) {
+
+        return event_add_inotify_fd_internal(e, ret, fd, /* donate= */ false, mask, callback, userdata);
+}
+
+_public_ int sd_event_add_inotify(
+                sd_event *e,
+                sd_event_source **ret,
+                const char *path,
+                uint32_t mask,
+                sd_event_inotify_handler_t callback,
+                void *userdata) {
+
+        sd_event_source *s;
+        int fd, r;
+
+        assert_return(path, -EINVAL);
+
+        fd = open(path, O_PATH|O_CLOEXEC|
+                  (mask & IN_ONLYDIR ? O_DIRECTORY : 0)|
+                  (mask & IN_DONT_FOLLOW ? O_NOFOLLOW : 0));
+        if (fd < 0)
+                return -errno;
+
+        r = event_add_inotify_fd_internal(e, &s, fd, /* donate= */ true, mask, callback, userdata);
+        if (r < 0)
+                return r;
+
+        (void) sd_event_source_set_description(s, path);
+
+        if (ret)
+                *ret = s;
+
+        return r;
 }
 
 _public_ sd_event_source* sd_event_source_ref(sd_event_source *s) {

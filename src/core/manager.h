@@ -416,6 +416,8 @@ unsigned manager_dispatch_load_queue(Manager *m);
 int manager_environment_add(Manager *m, char **minus, char **plus);
 int manager_set_default_rlimits(Manager *m, struct rlimit **default_rlimit);
 
+void manager_trigger_run_queue(Manager *m);
+
 int manager_loop(Manager *m);
 
 int manager_open_serialization(Manager *m, FILE **_f);

@@ -139,7 +139,8 @@ static int detect_vm_dmi(void) {
                 "/sys/class/dmi/id/product_name", /* Test this before sys_vendor to detect KVM over QEMU */
                 "/sys/class/dmi/id/sys_vendor",
                 "/sys/class/dmi/id/board_vendor",
-                "/sys/class/dmi/id/bios_vendor"
+                "/sys/class/dmi/id/bios_vendor",
+                "/sys/class/dmi/id/product_version" /* For Hyper-V VMs test */
         };
 
         static const struct {
@@ -157,7 +158,7 @@ static int detect_vm_dmi(void) {
                 { "Parallels",     VIRTUALIZATION_PARALLELS },
                 /* https://wiki.freebsd.org/bhyve */
                 { "BHYVE",         VIRTUALIZATION_BHYVE     },
-                { "Microsoft",           VIRTUALIZATION_MICROSOFT },
+                { "Hyper-V",             VIRTUALIZATION_MICROSOFT },
         };
         unsigned i;
         int r;

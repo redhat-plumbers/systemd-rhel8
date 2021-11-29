@@ -146,7 +146,7 @@ invalid:
 }
 
 static bool is_inaccessible_available(void) {
-        char *p;
+        const char *p;
 
         FOREACH_STRING(p,
                 "/run/systemd/inaccessible/reg",

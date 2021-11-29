@@ -1720,7 +1720,7 @@ static int client_receive_message_udp(
 
         len = recv(fd, message, buflen, 0);
         if (len < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return log_dhcp_client_errno(client, errno,
@@ -1814,7 +1814,7 @@ static int client_receive_message_raw(
 
         len = recvmsg(fd, &msg, 0);
         if (len < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return log_dhcp_client_errno(client, errno,

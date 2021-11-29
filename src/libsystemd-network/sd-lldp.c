@@ -200,7 +200,7 @@ static int lldp_receive_datagram(sd_event_source *s, int fd, uint32_t revents, v
 
         length = recv(fd, LLDP_NEIGHBOR_RAW(n), n->raw_size, MSG_DONTWAIT);
         if (length < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return log_lldp_errno(errno, "Failed to read LLDP datagram: %m");

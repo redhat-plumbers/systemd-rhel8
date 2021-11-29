@@ -1131,7 +1131,7 @@ int server_process_datagram(sd_event_source *es, int fd, uint32_t revents, void 
 
         n = recvmsg(fd, &msghdr, MSG_DONTWAIT|MSG_CMSG_CLOEXEC);
         if (n < 0) {
-                if (IN_SET(errno, EINTR, EAGAIN))
+                if (ERRNO_IS_TRANSIENT(n))
                         return 0;
 
                 return log_error_errno(errno, "recvmsg() failed: %m");

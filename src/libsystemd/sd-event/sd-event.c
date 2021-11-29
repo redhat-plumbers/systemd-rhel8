@@ -3007,7 +3007,7 @@ static int flush_timer(sd_event *e, int fd, uint32_t events, usec_t *next) {
 
         ss = read(fd, &x, sizeof(x));
         if (ss < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return -errno;
@@ -3161,7 +3161,7 @@ static int process_signal(sd_event *e, struct signal_data *d, uint32_t events) {
 
                 n = read(d->fd, &si, sizeof(si));
                 if (n < 0) {
-                        if (IN_SET(errno, EAGAIN, EINTR))
+                        if (ERRNO_IS_TRANSIENT(errno))
                                 return read_one;
 
                         return -errno;
@@ -3210,7 +3210,7 @@ static int event_inotify_data_read(sd_event *e, struct inotify_data *d, uint32_t
 
         n = read(d->fd, &d->buffer, sizeof(d->buffer));
         if (n < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return -errno;

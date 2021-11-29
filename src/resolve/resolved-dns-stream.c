@@ -380,7 +380,7 @@ static int on_stream_io(sd_event_source *es, int fd, uint32_t revents, void *use
 
                 ss = dns_stream_writev(s, iov, 2, 0);
                 if (ss < 0) {
-                        if (!IN_SET(-ss, EINTR, EAGAIN))
+                        if (!ERRNO_IS_TRANSIENT(ss))
                                 return dns_stream_complete(s, -ss);
                 } else
                         s->n_written += ss;
@@ -402,7 +402,7 @@ static int on_stream_io(sd_event_source *es, int fd, uint32_t revents, void *use
 
                         ss = dns_stream_read(s, (uint8_t*) &s->read_size + s->n_read, sizeof(s->read_size) - s->n_read);
                         if (ss < 0) {
-                                if (!IN_SET(-ss, EINTR, EAGAIN))
+                                if (!ERRNO_IS_TRANSIENT(ss))
                                         return dns_stream_complete(s, -ss);
                         } else if (ss == 0)
                                 return dns_stream_complete(s, ECONNRESET);
@@ -452,7 +452,7 @@ static int on_stream_io(sd_event_source *es, int fd, uint32_t revents, void *use
                                           (uint8_t*) DNS_PACKET_DATA(s->read_packet) + s->n_read - sizeof(s->read_size),
                                           sizeof(s->read_size) + be16toh(s->read_size) - s->n_read);
                                 if (ss < 0) {
-                                        if (!IN_SET(errno, EINTR, EAGAIN))
+                                        if (!ERRNO_IS_TRANSIENT(errno))
                                                 return dns_stream_complete(s, errno);
                                 } else if (ss == 0)
                                         return dns_stream_complete(s, ECONNRESET);

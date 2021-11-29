@@ -150,7 +150,7 @@ static int ask_password_plymouth(
 
                 k = read(fd, buffer + p, sizeof(buffer) - p);
                 if (k < 0) {
-                        if (IN_SET(errno, EINTR, EAGAIN))
+                        if (ERRNO_IS_TRANSIENT(errno))
                                 continue;
 
                         r = -errno;

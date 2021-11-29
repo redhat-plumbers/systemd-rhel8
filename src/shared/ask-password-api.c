@@ -332,7 +332,7 @@ int ask_password_tty(
 
                 n = read(ttyfd >= 0 ? ttyfd : STDIN_FILENO, &c, 1);
                 if (n < 0) {
-                        if (IN_SET(errno, EINTR, EAGAIN))
+                        if (ERRNO_IS_TRANSIENT(errno))
                                 continue;
 
                         r = -errno;
@@ -652,7 +652,7 @@ int ask_password_agent(
 
                 n = recvmsg(socket_fd, &msghdr, 0);
                 if (n < 0) {
-                        if (IN_SET(errno, EAGAIN, EINTR))
+                        if (ERRNO_IS_TRANSIENT(errno))
                                 continue;
 
                         r = -errno;
@@ -661,7 +661,7 @@ int ask_password_agent(
 
                 cmsg_close_all(&msghdr);
 
-                if (n <= 0) {
+                if (n == 0) {
                         log_debug("Message too short");
                         continue;
                 }

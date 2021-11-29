@@ -13,6 +13,7 @@
 #include "barrier.h"
 #include "fd-util.h"
 #include "macro.h"
+#include "util.h"
 
 /**
  * Barriers
@@ -181,7 +182,7 @@ static bool barrier_write(Barrier *b, uint64_t buf) {
         assert(b->me >= 0);
         do {
                 len = write(b->me, &buf, sizeof(buf));
-        } while (len < 0 && IN_SET(errno, EAGAIN, EINTR));
+        } while (len < 0 && ERRNO_IS_TRANSIENT(errno));
 
         if (len != sizeof(buf))
                 goto error;
@@ -223,7 +224,7 @@ static bool barrier_read(Barrier *b, int64_t comp) {
                 int r;
 
                 r = poll(pfd, 2, -1);
-                if (r < 0 && IN_SET(errno, EAGAIN, EINTR))
+                if (r < 0 && ERRNO_IS_TRANSIENT(errno))
                         continue;
                 else if (r < 0)
                         goto error;
@@ -233,7 +234,7 @@ static bool barrier_read(Barrier *b, int64_t comp) {
 
                         /* events on @them signal new data for us */
                         len = read(b->them, &buf, sizeof(buf));
-                        if (len < 0 && IN_SET(errno, EAGAIN, EINTR))
+                        if (len < 0 && ERRNO_IS_TRANSIENT(errno))
                                 continue;
 
                         if (len != sizeof(buf))

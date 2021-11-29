@@ -2331,7 +2331,7 @@ static int manager_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t 
 
         n = recvmsg(m->notify_fd, &msghdr, MSG_DONTWAIT|MSG_CMSG_CLOEXEC|MSG_TRUNC);
         if (n < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(n))
                         return 0; /* Spurious wakeup, try again */
 
                 /* If this is any other, real error, then let's stop processing this socket. This of course means we
@@ -2573,18 +2573,17 @@ static int manager_dispatch_signal_fd(sd_event_source *source, int fd, uint32_t 
         }
 
         n = read(m->signal_fd, &sfsi, sizeof(sfsi));
-        if (n != sizeof(sfsi)) {
-                if (n >= 0) {
-                        log_warning("Truncated read from signal fd (%zu bytes), ignoring!", n);
-                        return 0;
-                }
-
-                if (IN_SET(errno, EINTR, EAGAIN))
+        if (n < 0) {
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 /* We return an error here, which will kill this handler,
                  * to avoid a busy loop on read error. */
                 return log_error_errno(errno, "Reading from signal fd failed: %m");
+        }
+        if (n != sizeof(sfsi)) {
+                log_warning("Truncated read from signal fd (%zu bytes), ignoring!", n);
+                return 0;
         }
 
         log_received_signal(sfsi.ssi_signo == SIGCHLD ||
@@ -4453,7 +4452,7 @@ int manager_dispatch_user_lookup_fd(sd_event_source *source, int fd, uint32_t re
 
         l = recv(fd, &buffer, sizeof(buffer), MSG_DONTWAIT);
         if (l < 0) {
-                if (IN_SET(errno, EINTR, EAGAIN))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return log_error_errno(errno, "Failed to read from user lookup fd: %m");

@@ -3252,7 +3252,7 @@ static int nspawn_dispatch_notify_fd(sd_event_source *source, int fd, uint32_t r
 
         n = recvmsg(fd, &msghdr, MSG_DONTWAIT|MSG_CMSG_CLOEXEC);
         if (n < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+            if (ERRNO_IS_TRANSIENT(n))
                         return 0;
 
                 return log_warning_errno(errno, "Couldn't read notification socket: %m");

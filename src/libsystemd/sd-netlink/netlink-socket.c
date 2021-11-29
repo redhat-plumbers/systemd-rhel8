@@ -265,7 +265,7 @@ static int socket_recv_message(int fd, struct iovec *iov, uint32_t *_group, bool
                 else if (errno == EAGAIN)
                         log_debug("rtnl: no data in socket");
 
-                return IN_SET(errno, EAGAIN, EINTR) ? 0 : -errno;
+                return ERRNO_IS_TRANSIENT(errno) ? 0 : -errno;
         }
 
         if (sender.nl.nl_pid != 0) {
@@ -276,7 +276,7 @@ static int socket_recv_message(int fd, struct iovec *iov, uint32_t *_group, bool
                         /* drop the message */
                         n = recvmsg(fd, &msg, 0);
                         if (n < 0)
-                                return IN_SET(errno, EAGAIN, EINTR) ? 0 : -errno;
+                                return ERRNO_IS_TRANSIENT(errno) ? 0 : -errno;
                 }
 
                 return 0;

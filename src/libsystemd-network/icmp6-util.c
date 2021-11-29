@@ -175,7 +175,7 @@ int icmp6_receive(int fd, void *buffer, size_t size, struct in6_addr *dst,
 
         len = recvmsg(fd, &msg, MSG_DONTWAIT);
         if (len < 0) {
-                if (IN_SET(errno, EAGAIN, EINTR))
+                if (ERRNO_IS_TRANSIENT(errno))
                         return 0;
 
                 return -errno;

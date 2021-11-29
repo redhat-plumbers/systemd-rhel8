@@ -180,6 +180,14 @@ static inline int negative_errno(void) {
         return -errno;
 }
 
+
+/* For send()/recv() or read()/write(). */
+static inline bool ERRNO_IS_TRANSIENT(int r) {
+        return IN_SET(abs(r),
+                      EAGAIN,
+                      EINTR);
+}
+
 /* Two different errors for access problems */
 static inline bool ERRNO_IS_PRIVILEGE(int r) {
         return IN_SET(abs(r),

@@ -131,7 +131,7 @@ for phase in "${PHASES[@]}"; do
             # Pull a Docker image and start a new container
             docker pull quay.io/centos/centos:$CENTOS_RELEASE
             info "Starting container $CONT_NAME"
-            $DOCKER_RUN -v $REPO_ROOT:/build:rw \
+            $DOCKER_RUN -v $REPO_ROOT:/build:rw -e GITHUB_ACTIONS="$GITHUB_ACTIONS" \
                         -w /build --privileged=true --name $CONT_NAME \
                         -dit --net=host quay.io/centos/centos:$CENTOS_RELEASE /sbin/init
 

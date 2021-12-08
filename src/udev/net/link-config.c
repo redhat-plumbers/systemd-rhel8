@@ -526,7 +526,7 @@ int link_config_apply(link_config_ctx *ctx, link_config *config,
         strv_uniq(altnames);
         strv_sort(altnames);
         r = rtnl_set_link_alternative_names(&ctx->rtnl, ifindex, altnames);
-        if (r == -EOPNOTSUPP)
+        if (IN_SET(r, -EOPNOTSUPP, -EEXIST))
                 log_debug_errno(r, "Could not set AlternativeName= or apply AlternativeNamesPolicy= on %s, ignoring: %m", old_name);
         else if (r < 0)
                 return log_warning_errno(r, "Could not set AlternativeName= or apply AlternativeNamesPolicy= on %s: %m", old_name);

@@ -8658,34 +8658,23 @@ static int logind_schedule_shutdown(void) {
 static int halt_main(void) {
         int r;
 
-        r = logind_check_inhibitors(arg_action);
-        if (r < 0)
-                return r;
-
+        /* always try logind first */
         if (arg_when > 0)
-                return logind_schedule_shutdown();
+                r = logind_schedule_shutdown();
+        else {
+                r = logind_check_inhibitors(arg_action);
+                if (r < 0)
+                        return r;
 
-        if (geteuid() != 0) {
-                if (arg_dry_run || arg_force > 0) {
-                        (void) must_be_root();
-                        return -EPERM;
-                }
-
-                /* Try logind if we are a normal user and no special
-                 * mode applies. Maybe PolicyKit allows us to shutdown
-                 * the machine. */
-                if (IN_SET(arg_action, ACTION_POWEROFF, ACTION_REBOOT, ACTION_HALT)) {
-                        r = logind_reboot(arg_action);
-                        if (r >= 0)
-                                return r;
-                        if (IN_SET(r, -EOPNOTSUPP, -EINPROGRESS))
-                                /* requested operation is not
-                                 * supported on the local system or
-                                 * already in progress */
-                                return r;
-                        /* on all other errors, try low-level operation */
-                }
+                r = logind_reboot(arg_action);
         }
+        if (r >= 0)
+                return r;
+        if (IN_SET(r, -EOPNOTSUPP, -EINPROGRESS))
+                /* Requested operation is not supported on the local system or already in
+                 * progress */
+                return r;
+        /* on all other errors, try low-level operation */
 
         /* In order to minimize the difference between operation with and
          * without logind, we explicitly enable non-blocking mode for this,
@@ -8695,7 +8684,10 @@ static int halt_main(void) {
         if (!arg_dry_run && !arg_force)
                 return start_with_fallback();
 
-        assert(geteuid() == 0);
+        if (geteuid() != 0) {
+                (void) must_be_root();
+                return -EPERM;
+        }
 
         if (!arg_no_wtmp) {
                 if (sd_booted() > 0)

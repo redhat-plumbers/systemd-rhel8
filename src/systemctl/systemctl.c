@@ -3675,8 +3675,8 @@ static int start_special(int argc, char *argv[], void *userdata) {
                         r = logind_reboot(a);
                         if (r >= 0)
                                 return r;
-                        if (IN_SET(r, -EOPNOTSUPP, -EINPROGRESS))
-                                /* requested operation is not supported or already in progress */
+                        if (IN_SET(r, -EACCES, -EOPNOTSUPP, -EINPROGRESS))
+                                /* Requested operation requires auth, is not supported or already in progress */
                                 return r;
 
                         /* On all other errors, try low-level operation. In order to minimize the difference between
@@ -8644,7 +8644,7 @@ static int logind_schedule_shutdown(void) {
                         action,
                         arg_when);
         if (r < 0)
-                return log_warning_errno(r, "Failed to call ScheduleShutdown in logind, proceeding with immediate shutdown: %s", bus_error_message(&error, r));
+                return log_warning_errno(r, "Failed to schedule shutdown: %s", bus_error_message(&error, r));
 
         if (!arg_quiet)
                 log_info("Shutdown scheduled for %s, use 'shutdown -c' to cancel.", format_timestamp(date, sizeof(date), arg_when));
@@ -8670,8 +8670,8 @@ static int halt_main(void) {
         }
         if (r >= 0)
                 return r;
-        if (IN_SET(r, -EOPNOTSUPP, -EINPROGRESS))
-                /* Requested operation is not supported on the local system or already in
+        if (IN_SET(r, -EACCES, -EOPNOTSUPP, -EINPROGRESS))
+                /* Requested operation requires auth, is not supported on the local system or already in
                  * progress */
                 return r;
         /* on all other errors, try low-level operation */

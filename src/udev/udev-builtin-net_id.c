@@ -135,6 +135,7 @@ typedef enum NamingSchemeFlags {
         NAMING_RHEL_8_3 = NAMING_V239,
         NAMING_RHEL_8_4 = NAMING_V239|NAMING_BRIDGE_NO_SLOT,
         NAMING_RHEL_8_5 = NAMING_RHEL_8_4,
+        NAMING_RHEL_8_6 = NAMING_RHEL_8_4,
 
         _NAMING_SCHEME_FLAGS_INVALID = -1,
 } NamingSchemeFlags;
@@ -153,6 +154,7 @@ static const NamingScheme naming_schemes[] = {
         { "rhel-8.3", NAMING_RHEL_8_3 },
         { "rhel-8.4", NAMING_RHEL_8_4 },
         { "rhel-8.5", NAMING_RHEL_8_5 },
+        { "rhel-8.6", NAMING_RHEL_8_6 },
         /* … add more schemes here, as the logic to name devices is updated … */
 };
 

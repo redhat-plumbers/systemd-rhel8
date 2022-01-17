@@ -420,7 +420,7 @@ enum nss_status _nss_mymachines_getpwnam_r(
                 return NSS_STATUS_NOTFOUND;
 
         machine = strndupa(p, e - p);
-        if (!machine_name_is_valid(machine))
+        if (!hostname_is_valid(machine, 0))
                 return NSS_STATUS_NOTFOUND;
 
         if (getenv_bool_secure("SYSTEMD_NSS_BYPASS_BUS") > 0)
@@ -596,7 +596,7 @@ enum nss_status _nss_mymachines_getgrnam_r(
                 return NSS_STATUS_NOTFOUND;
 
         machine = strndupa(p, e - p);
-        if (!machine_name_is_valid(machine))
+        if (!hostname_is_valid(machine, 0))
                 return NSS_STATUS_NOTFOUND;
 
         if (getenv_bool_secure("SYSTEMD_NSS_BYPASS_BUS") > 0)

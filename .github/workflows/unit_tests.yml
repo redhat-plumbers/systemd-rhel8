@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [centos8, stream8]
+        image: [stream8]
         phase: [GCC, GCC_ASAN]
     env:
       CONT_NAME: "systemd-centos8-ci"

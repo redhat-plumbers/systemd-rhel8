@@ -358,11 +358,16 @@ static int md_list_get(MountPoint **head) {
         if (r < 0)
                 return r;
 
+        /* Filter out partitions. */
+        r = udev_enumerate_add_match_property(e, "DEVTYPE", "disk");
+        if (r < 0)
+                return r;
+
         first = udev_enumerate_get_list_entry(e);
         udev_list_entry_foreach(item, first) {
                 _cleanup_(udev_device_unrefp) struct udev_device *d;
                 _cleanup_free_ char *p = NULL;
-                const char *dn;
+                const char *dn, *md_level;
                 MountPoint *m;
                 dev_t devnum;
 
@@ -373,6 +378,17 @@ static int md_list_get(MountPoint **head) {
                 devnum = udev_device_get_devnum(d);
                 dn = udev_device_get_devnode(d);
                 if (major(devnum) == 0 || !dn)
+                        continue;
+
+                md_level = udev_device_get_property_value(d, "MD_LEVEL");
+                if (!m) {
+                        log_warning("Failed to get MD_LEVEL property for %s, ignoring", dn);
+                        continue;
+                }
+
+                /* MD "containers" are a special type of MD devices, used for external metadata.
+                 * Since it doesn't provide RAID functionality in itself we don't need to stop it. */
+                if (streq(md_level, "container"))
                         continue;
 
                 p = strdup(dn);

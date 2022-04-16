@@ -182,13 +182,13 @@ _public_ sd_bus_track* sd_bus_track_unref(sd_bus_track *track) {
 
 static int on_name_owner_changed(sd_bus_message *message, void *userdata, sd_bus_error *error) {
         sd_bus_track *track = userdata;
-        const char *name, *old, *new;
+        const char *name;
         int r;
 
         assert(message);
         assert(track);
 
-        r = sd_bus_message_read(message, "sss", &name, &old, &new);
+        r = sd_bus_message_read(message, "sss", &name, NULL, NULL);
         if (r < 0)
                 return 0;
 

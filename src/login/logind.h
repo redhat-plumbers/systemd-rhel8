@@ -101,6 +101,7 @@ struct Manager {
         usec_t idle_action_usec;
         usec_t idle_action_not_before_usec;
         HandleAction idle_action;
+        bool was_idle;
 
         usec_t stop_idle_session_usec;
 

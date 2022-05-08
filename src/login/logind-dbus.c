@@ -1392,30 +1392,29 @@ static int bus_manager_log_shutdown(
         assert(unit_name);
 
         if (streq(unit_name, SPECIAL_POWEROFF_TARGET)) {
-                p = "MESSAGE=System is powering down";
+                p = "System is powering down";
                 q = "SHUTDOWN=power-off";
         } else if (streq(unit_name, SPECIAL_REBOOT_TARGET)) {
-                p = "MESSAGE=System is rebooting";
+                p = "System is rebooting";
                 q = "SHUTDOWN=reboot";
         } else if (streq(unit_name, SPECIAL_HALT_TARGET)) {
-                p = "MESSAGE=System is halting";
+                p = "System is halting";
                 q = "SHUTDOWN=halt";
         } else if (streq(unit_name, SPECIAL_KEXEC_TARGET)) {
-                p = "MESSAGE=System is rebooting with kexec";
+                p = "System is rebooting with kexec";
                 q = "SHUTDOWN=kexec";
         } else {
-                p = "MESSAGE=System is shutting down";
+                p = "System is shutting down";
                 q = NULL;
         }
 
-        if (isempty(m->wall_message))
-                p = strjoina(p, ".");
-        else
-                p = strjoina(p, " (", m->wall_message, ").");
-
         return log_struct(LOG_NOTICE,
                           "MESSAGE_ID=" SD_MESSAGE_SHUTDOWN_STR,
-                          p,
+                          LOG_MESSAGE("%s%s%s%s.",
+                                      p,
+                                      m->wall_message ? " (" : "",
+                                      strempty(m->wall_message),
+                                      m->wall_message ? ")" : ""),
                           q);
 }
 

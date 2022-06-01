@@ -1615,6 +1615,11 @@ static int bus_append_unit_property(sd_bus_message *m, const char *field, const 
 
                 return bus_append_parse_sec_rename(m, field, eq);
 
+        /* Scope units don't have execution context but we still want to allow setting these two,
+         * so let's handle them separately. */
+        if (STR_IN_SET(field, "User", "Group"))
+                return bus_append_string(m, field, eq);
+
         if (streq(field, "StartLimitBurst"))
 
                 return bus_append_safe_atou(m, field, eq);

@@ -99,6 +99,7 @@ typedef enum PathState {
 
 typedef enum ScopeState {
         SCOPE_DEAD,
+        SCOPE_START_CHOWN,
         SCOPE_RUNNING,
         SCOPE_ABANDONED,
         SCOPE_STOP_SIGTERM,

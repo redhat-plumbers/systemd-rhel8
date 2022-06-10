@@ -953,6 +953,26 @@ void session_set_locked_hint(Session *s, bool b) {
         session_send_changed(s, "LockedHint", NULL);
 }
 
+int session_set_display(Session *s, const char *display) {
+        int r;
+
+        assert(s);
+        assert(display);
+
+        if (streq(s->display, display))
+                return 0;
+
+        r = free_and_strdup(&s->display, display);
+        if (r < 0)
+                return r;
+
+        session_save(s);
+
+        session_send_changed(s, "Display", NULL);
+
+        return 1;
+}
+
 static int session_dispatch_fifo(sd_event_source *es, int fd, uint32_t revents, void *userdata) {
         Session *s = userdata;
 

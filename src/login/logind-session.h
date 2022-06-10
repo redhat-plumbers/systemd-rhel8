@@ -123,6 +123,7 @@ int session_get_idle_hint(Session *s, dual_timestamp *t);
 void session_set_idle_hint(Session *s, bool b);
 int session_get_locked_hint(Session *s);
 void session_set_locked_hint(Session *s, bool b);
+int session_set_display(Session *s, const char *display);
 int session_create_fifo(Session *s);
 int session_start(Session *s, sd_bus_message *properties, sd_bus_error *error);
 int session_stop(Session *s, bool force);

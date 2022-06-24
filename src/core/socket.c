@@ -25,6 +25,7 @@
 #include "in-addr-util.h"
 #include "io-util.h"
 #include "label.h"
+#include "locale-util.h"
 #include "log.h"
 #include "missing.h"
 #include "mkdir.h"
@@ -1355,7 +1356,8 @@ static int socket_symlink(Socket *s) {
                 }
 
                 if (r < 0)
-                        log_unit_warning_errno(UNIT(s), r, "Failed to create symlink %s → %s, ignoring: %m", p, *i);
+                        log_unit_warning_errno(UNIT(s), r, "Failed to create symlink %s %s %s, ignoring: %m",
+                                               p, special_glyph(ARROW), *i);
         }
 
         return 0;

@@ -18,6 +18,7 @@
 #include "fileio.h"
 #include "fs-util.h"
 #include "hashmap.h"
+#include "locale-util.h"
 #include "mount-util.h"
 #include "parse-util.h"
 #include "path-util.h"
@@ -844,8 +845,8 @@ int mount_verbose(
                 log_debug("Bind-mounting %s on %s (%s \"%s\")...",
                           what, where, strnull(fl), strempty(o));
         else if (f & MS_MOVE)
-                log_debug("Moving mount %s → %s (%s \"%s\")...",
-                          what, where, strnull(fl), strempty(o));
+                log_debug("Moving mount %s %s %s (%s \"%s\")...",
+                          what, special_glyph(ARROW), where, strnull(fl), strempty(o));
         else
                 log_debug("Mounting %s on %s (%s \"%s\")...",
                           strna(type), where, strnull(fl), strempty(o));

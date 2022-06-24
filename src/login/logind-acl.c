@@ -9,6 +9,7 @@
 #include "escape.h"
 #include "fd-util.h"
 #include "format-util.h"
+#include "locale-util.h"
 #include "logind-acl.h"
 #include "set.h"
 #include "string-util.h"
@@ -260,8 +261,8 @@ int devnode_acl_all(struct udev *udev,
         SET_FOREACH(n, nodes, i) {
                 int k;
 
-                log_debug("Changing ACLs at %s for seat %s (uid "UID_FMT"→"UID_FMT"%s%s)",
-                          n, seat, old_uid, new_uid,
+                log_debug("Changing ACLs at %s for seat %s (uid "UID_FMT"%s"UID_FMT"%s%s)",
+                          n, seat, old_uid, special_glyph(ARROW), new_uid,
                           del ? " del" : "", add ? " add" : "");
 
                 k = devnode_acl(n, flush, del, old_uid, add, new_uid);

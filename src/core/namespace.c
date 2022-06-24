@@ -15,6 +15,7 @@
 #include "fd-util.h"
 #include "fs-util.h"
 #include "label.h"
+#include "locale-util.h"
 #include "loop-util.h"
 #include "loopback-setup.h"
 #include "missing.h"
@@ -841,7 +842,8 @@ static int follow_symlink(
                 return -ELOOP;
         }
 
-        log_debug("Followed mount entry path symlink %s → %s.", mount_entry_path(m), target);
+        log_debug("Followed mount entry path symlink %s %s %s.",
+                  mount_entry_path(m), special_glyph(ARROW), target);
 
         free_and_replace(m->path_malloc, target);
         m->has_prefix = true;
@@ -920,7 +922,8 @@ static int apply_mount(
                 if (r < 0)
                         return log_debug_errno(r, "Failed to follow symlinks on %s: %m", mount_entry_source(m));
 
-                log_debug("Followed source symlinks %s → %s.", mount_entry_source(m), chased);
+                log_debug("Followed source symlinks %s %s %s.",
+                          mount_entry_source(m), special_glyph(ARROW), chased);
 
                 free_and_replace(m->source_malloc, chased);
 

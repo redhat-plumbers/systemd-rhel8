@@ -17,6 +17,7 @@
 
 #include "alloc-util.h"
 #include "dns-domain.h"
+#include "locale-util.h"
 #include "hashmap.h"
 #include "hexdecoct.h"
 #include "in-addr-util.h"
@@ -1260,7 +1261,7 @@ int dns_name_apply_idna(const char *name, char **ret) {
 
         r = idn2_lookup_u8((uint8_t*) name, (uint8_t**) &t,
                            IDN2_NFC_INPUT | IDN2_NONTRANSITIONAL);
-        log_debug("idn2_lookup_u8: %s → %s", name, t);
+        log_debug("idn2_lookup_u8: %s %s %s", name, special_glyph(ARROW), t);
         if (r == IDN2_OK) {
                 if (!startswith(name, "xn--")) {
                         _cleanup_free_ char *s = NULL;
@@ -1273,8 +1274,10 @@ int dns_name_apply_idna(const char *name, char **ret) {
                         }
 
                         if (!streq_ptr(name, s)) {
-                                log_debug("idn2 roundtrip failed: \"%s\" → \"%s\" → \"%s\", ignoring.",
-                                          name, t, s);
+                                log_debug("idn2 roundtrip failed: \"%s\" %s \"%s\" %s \"%s\", ignoring.",
+                                          name, special_glyph(ARROW), t,
+                                          special_glyph(ARROW), s);
+                                *ret = NULL;
                                 return 0;
                         }
                 }

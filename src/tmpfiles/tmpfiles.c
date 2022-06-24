@@ -36,6 +36,7 @@
 #include "fs-util.h"
 #include "glob-util.h"
 #include "io-util.h"
+#include "locale-util.h"
 #include "label.h"
 #include "log.h"
 #include "macro.h"
@@ -2143,7 +2144,8 @@ static int patch_var_run(const char *fname, unsigned line, char **path) {
          * there's no immediate need for action by the user. However, in the interest of making things less confusing
          * to the user, let's still inform the user that these snippets should really be updated. */
 
-        log_notice("[%s:%u] Line references path below legacy directory /var/run/, updating %s → %s; please update the tmpfiles.d/ drop-in file accordingly.", fname, line, *path, n);
+        log_notice("[%s:%u] Line references path below legacy directory /var/run/, updating %s %s %s; please update the tmpfiles.d/ drop-in file accordingly.",
+                   fname, line, *path, special_glyph(ARROW), n);
 
         free(*path);
         *path = n;

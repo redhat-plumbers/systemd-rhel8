@@ -31,6 +31,7 @@
 #include "dbus.h"
 #include "fd-util.h"
 #include "fs-util.h"
+#include "locale-util.h"
 #include "log.h"
 #include "missing.h"
 #include "mkdir.h"
@@ -751,7 +752,8 @@ static int manager_dispatch_sync_bus_names(sd_event_source *es, void *userdata) 
                 assert(s);
 
                 if (!streq_ptr(s->bus_name, name)) {
-                        log_unit_warning(u, "Bus name has changed from %s → %s, ignoring.", s->bus_name, name);
+                        log_unit_warning(u, "Bus name has changed from %s %s %s, ignoring.",
+                                         s->bus_name, special_glyph(ARROW), name);
                         continue;
                 }
 

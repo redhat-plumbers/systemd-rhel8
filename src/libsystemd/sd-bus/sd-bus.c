@@ -31,6 +31,7 @@
 #include "cgroup-util.h"
 #include "def.h"
 #include "fd-util.h"
+#include "locale-util.h"
 #include "hexdecoct.h"
 #include "hostname-util.h"
 #include "macro.h"
@@ -518,7 +519,8 @@ void bus_set_state(sd_bus *bus, enum bus_state state) {
         if (state == bus->state)
                 return;
 
-        log_debug("Bus %s: changing state %s → %s", strna(bus->description), table[bus->state], table[state]);
+        log_debug("Bus %s: changing state %s %s %s", strna(bus->description),
+                  table[bus->state], special_glyph(ARROW), table[state]);
         bus->state = state;
 }
 

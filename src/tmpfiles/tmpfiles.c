@@ -2654,7 +2654,7 @@ static int read_config_file(char **config_dirs, const char *fn, bool ignore_enoe
         assert(fn);
 
         if (streq(fn, "-")) {
-                log_debug("Reading config from stdin…");
+                log_debug("Reading config from stdin%s", special_glyph(ELLIPSIS));
                 fn = "<stdin>";
                 f = stdin;
         } else {
@@ -2667,7 +2667,7 @@ static int read_config_file(char **config_dirs, const char *fn, bool ignore_enoe
 
                         return log_error_errno(r, "Failed to open '%s': %m", fn);
                 }
-                log_debug("Reading config file \"%s\"…", fn);
+                log_debug("Reading config file \"%s\"%s", fn, special_glyph(ELLIPSIS));
                 f = _f;
         }
 
@@ -2765,7 +2765,7 @@ static int read_config_files(char **config_dirs, char **args, bool *invalid_conf
 
         STRV_FOREACH(f, files)
                 if (p && path_equal(*f, p)) {
-                        log_debug("Parsing arguments at position \"%s\"…", *f);
+                        log_debug("Parsing arguments at position \"%s\"%s", *f, special_glyph(ELLIPSIS));
 
                         r = parse_arguments(config_dirs, args, invalid_config);
                         if (r < 0)

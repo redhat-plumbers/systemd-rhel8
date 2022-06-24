@@ -12,6 +12,7 @@
 #include "format-util.h"
 #include "fs-util.h"
 #include "hashmap.h"
+#include "locale-util.h"
 #include "pager.h"
 #include "path-util.h"
 #include "selinux-util.h"
@@ -1890,13 +1891,13 @@ static int read_config_files(char **args) {
 
         STRV_FOREACH(f, files)
                 if (p && path_equal(*f, p)) {
-                        log_debug("Parsing arguments at position \"%s\"…", *f);
+                        log_debug("Parsing arguments at position \"%s\"%s", *f, special_glyph(ELLIPSIS));
 
                         r = parse_arguments(args);
                         if (r < 0)
                                 return r;
                 } else {
-                        log_debug("Reading config file \"%s\"…", *f);
+                        log_debug("Reading config file \"%s\"%s", *f, special_glyph(ELLIPSIS));
 
                         /* Just warn, ignore result otherwise */
                         (void) read_config_file(*f, true);

@@ -61,6 +61,7 @@ BuildPackages=
 
 Packages=
         libidn2
+        gnutls
 
 BuildDirectory=mkosi.builddir
 Cache=mkosi.cache

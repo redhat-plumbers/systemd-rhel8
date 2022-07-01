@@ -14,13 +14,22 @@ test_setup() {
 
     (
         LOG_LEVEL=5
-        eval $(udevadm info --export --query=env --name="${LOOPDEV}p2")
+        eval "$(udevadm info --export --query=env --name="${LOOPDEV}p2")"
 
         setup_basic_environment
 
+        inst_binary awk
         inst_binary pkill
         inst_binary useradd
         inst_binary userdel
+
+        if command -v expect >/dev/null && command -v tclsh >/dev/null ; then
+                # shellcheck disable=SC2016
+                version="$(tclsh <<< 'puts $tcl_version')"
+
+                dracut_install expect
+                inst_recursive /usr/lib64/tcl"$version" /usr/share/tcl"$version"
+        fi
 
         # mask some services that we do not want to run in these tests
         ln -fs /dev/null "$initdir"/etc/systemd/system/systemd-hwdb-update.service

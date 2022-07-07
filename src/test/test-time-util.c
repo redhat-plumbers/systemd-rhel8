@@ -187,6 +187,11 @@ static void test_format_timespan(usec_t accuracy) {
         test_format_timespan_one(500 * USEC_PER_MSEC, accuracy);
         test_format_timespan_one(9*USEC_PER_YEAR/5 - 23, accuracy);
         test_format_timespan_one(USEC_INFINITY, accuracy);
+
+        /* See issue #23928. */
+        _cleanup_free_ char *buf;
+        assert_se(buf = new(char, 5));
+        assert_se(buf == format_timespan(buf, 5, 100005, 1000));
 }
 
 static void test_timezone_is_valid(void) {

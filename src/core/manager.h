@@ -285,6 +285,7 @@ struct Manager {
         ExecOutput default_std_output, default_std_error;
 
         usec_t default_restart_usec, default_timeout_start_usec, default_timeout_stop_usec;
+        usec_t default_device_timeout_usec;
 
         usec_t default_start_limit_interval;
         unsigned default_start_limit_burst;

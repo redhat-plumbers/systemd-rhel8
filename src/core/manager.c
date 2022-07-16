@@ -731,6 +731,7 @@ int manager_new(UnitFileScope scope, unsigned test_run_flags, Manager **_m) {
         m->default_tasks_max = UINT64_MAX;
         m->default_timeout_start_usec = DEFAULT_TIMEOUT_USEC;
         m->default_timeout_stop_usec = DEFAULT_TIMEOUT_USEC;
+        m->default_device_timeout_usec = DEFAULT_TIMEOUT_USEC,
         m->default_restart_usec = DEFAULT_RESTART_USEC;
         m->original_log_level = -1;
         m->original_log_target = _LOG_TARGET_INVALID;

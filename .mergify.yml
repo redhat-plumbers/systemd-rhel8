@@ -4,6 +4,7 @@
 pull_request_rules:
   - name: Add `needs-ci` label on CI fail
     conditions:
+      - label!=ci-waived
       - or:
         # Unit tests
         - -check-success=build (stream8, GCC)
@@ -27,21 +28,24 @@ pull_request_rules:
 
   - name: Remove `needs-ci` label on CI success
     conditions:
-      # Unit tests
-      - check-success=build (stream8, GCC)
-      - check-success=build (stream8, GCC_ASAN)
-      # CentOS Stream CI
-      - check-success=CentOS CI (CentOS Stream 8)
-      # LGTM
       - or:
-        - "check-success=LGTM analysis: JavaScript"
-        - "check-neutral=LGTM analysis: JavaScript"
-      - or:
-        - "check-success=LGTM analysis: Python"
-        - "check-neutral=LGTM analysis: Python"
-      - or:    
-        - "check-success=LGTM analysis: C/C++"
-        - "check-neutral=LGTM analysis: C/C++"
+        - label=ci-waived
+        - and:
+          # Unit tests
+          - check-success=build (stream8, GCC)
+          - check-success=build (stream8, GCC_ASAN)
+          # CentOS Stream CI
+          - check-success=CentOS CI (CentOS Stream 8)
+          # LGTM
+          - or:
+            - "check-success=LGTM analysis: JavaScript"
+            - "check-neutral=LGTM analysis: JavaScript"
+          - or:
+            - "check-success=LGTM analysis: Python"
+            - "check-neutral=LGTM analysis: Python"
+          - or:    
+            - "check-success=LGTM analysis: C/C++"
+            - "check-neutral=LGTM analysis: C/C++"
     actions:
       label:
         remove:

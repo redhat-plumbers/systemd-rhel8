@@ -11,6 +11,7 @@ ADDITIONAL_DEPS=(
         dnsmasq
         e2fsprogs
         hostname
+        iputils
         libasan
         libubsan
         nc

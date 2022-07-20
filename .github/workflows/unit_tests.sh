@@ -115,11 +115,19 @@ SYSTEMD_BUILD_DEPS=(
         python36-devel
         tree
         xz-devel
+        psmisc
 )
 
 function info() {
     echo -e "\033[33;1m$1\033[0m"
 }
+
+at_exit() {
+        echo "Hello from at_exit()"
+        pstree -Aapust $$
+}
+
+trap at_exit EXIT
 
 set -ex
 

@@ -1286,3 +1286,5 @@ int config_parse_permille(const char* unit,
 
         return 0;
 }
+
+DEFINE_CONFIG_PARSE_PTR(config_parse_sec_fix_0, parse_sec_fix_0, usec_t, "Failed to parse time value");

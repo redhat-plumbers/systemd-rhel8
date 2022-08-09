@@ -142,6 +142,7 @@ CONFIG_PARSER_PROTOTYPE(config_parse_ip_port);
 CONFIG_PARSER_PROTOTYPE(config_parse_join_controllers);
 CONFIG_PARSER_PROTOTYPE(config_parse_mtu);
 CONFIG_PARSER_PROTOTYPE(config_parse_rlimit);
+CONFIG_PARSER_PROTOTYPE(config_parse_sec_fix_0);
 
 typedef enum Disabled {
         DISABLED_CONFIGURATION,

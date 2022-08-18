@@ -7,6 +7,7 @@
 #include "procfs-util.h"
 #include "process-util.h"
 #include "util.h"
+#include "tests.h"
 
 int main(int argc, char *argv[]) {
         char buf[CONST_MAX(FORMAT_TIMESPAN_MAX, FORMAT_BYTES_MAX)];
@@ -52,8 +53,9 @@ int main(int argc, char *argv[]) {
                 log_info("Reducing limit by one to %"PRIu64"…", v-1);
 
                 r = procfs_tasks_set_limit(v-1);
-                log_info_errno(r, "procfs_tasks_set_limit: %m");
-                assert_se(r >= 0 || ERRNO_IS_PRIVILEGE(r) || r == -EROFS);
+                if (IN_SET(r, -ENOENT, -EROFS) || ERRNO_IS_PRIVILEGE(r))
+                        return log_tests_skipped_errno(r, "can't set tasks limit");
+                assert_se(r >= 0);
 
                 assert_se(procfs_get_threads_max(&w) >= 0);
                 assert_se(r >= 0 ? w == v - 1 : w == v);

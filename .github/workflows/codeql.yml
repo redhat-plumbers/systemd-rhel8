@@ -1,0 +1,68 @@
+---
+# vi: ts=2 sw=2 et:
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+name: "CodeQL"
+
+on:
+  pull_request:
+    branches:
+      - master
+      - rhel-*
+    paths:
+      - '**/meson.build'
+      - '.github/**/codeql*'
+      - 'src/**'
+      - 'test/**'
+      - 'tools/**'
+  push:
+    branches:
+      - master
+      - rhel-*
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.language }}-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      actions: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['cpp', 'python']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        config-file: ./.github/codeql-config.yml
+
+    - name: Install dependencies
+      if: matrix.language == 'cpp'
+      run: |
+        echo "deb-src http://archive.ubuntu.com/ubuntu/ $(lsb_release -cs) main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+        sudo apt-get -y update
+        sudo apt-get -y build-dep systemd
+        sudo apt-get -y install libfdisk-dev libpwquality-dev libqrencode-dev libssl-dev libxkbcommon-dev libzstd-dev
+
+    - name: Build
+      if: matrix.language == 'cpp'
+      run: |
+        # EL 8 systemd fails to build with newer gnu-efi (3.0.13 on Ubuntu Jammy ATTOW)
+        meson build -Dlibiptc=false -Dgnu-efi=false
+        ninja -C build -v
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2

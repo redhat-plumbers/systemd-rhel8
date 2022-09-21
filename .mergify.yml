@@ -11,16 +11,10 @@ pull_request_rules:
         - -check-success=build (stream8, GCC_ASAN)
         # CentOS Stream CI
         - -check-success=CentOS CI (CentOS Stream 8)
-        # LGTM
-        - and:
-          - "-check-success=LGTM analysis: JavaScript"
-          - "-check-neutral=LGTM analysis: JavaScript"
-        - and:
-          - "-check-success=LGTM analysis: Python"
-          - "-check-neutral=LGTM analysis: Python"
-        - and:    
-          - "-check-success=LGTM analysis: C/C++"
-          - "-check-neutral=LGTM analysis: C/C++"
+        # CodeQL
+        - -check-success=CodeQL
+        # Other
+        - -check-success=Differential ShellCheck
     actions:
       label:
         add:
@@ -36,16 +30,10 @@ pull_request_rules:
           - check-success=build (stream8, GCC_ASAN)
           # CentOS Stream CI
           - check-success=CentOS CI (CentOS Stream 8)
-          # LGTM
-          - or:
-            - "check-success=LGTM analysis: JavaScript"
-            - "check-neutral=LGTM analysis: JavaScript"
-          - or:
-            - "check-success=LGTM analysis: Python"
-            - "check-neutral=LGTM analysis: Python"
-          - or:    
-            - "check-success=LGTM analysis: C/C++"
-            - "check-neutral=LGTM analysis: C/C++"
+          # CodeQL
+          - check-success=CodeQL
+          # Other
+          - check-success=Differential ShellCheck
     actions:
       label:
         remove:

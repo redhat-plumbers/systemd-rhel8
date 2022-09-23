@@ -1427,6 +1427,7 @@ fail:
 static int socket_determine_selinux_label(Socket *s, char **ret) {
         Service *service;
         ExecCommand *c;
+        const char *exec_context;
         _cleanup_free_ char *path = NULL;
         int r;
 
@@ -1448,8 +1449,20 @@ static int socket_determine_selinux_label(Socket *s, char **ret) {
 
                 if (!UNIT_ISSET(s->service))
                         goto no_label;
-
                 service = SERVICE(UNIT_DEREF(s->service));
+
+                exec_context = service->exec_context.selinux_context;
+                if (exec_context) {
+                        char *con;
+
+                        con = strdup(exec_context);
+                        if (!con)
+                                return -ENOMEM;
+
+                        *ret = TAKE_PTR(con);
+                        return 0;
+                }
+
                 c = service->exec_command[SERVICE_EXEC_START];
                 if (!c)
                         goto no_label;

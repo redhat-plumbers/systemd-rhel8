@@ -153,6 +153,16 @@ static inline void _reset_errno_(int *saved_errno) {
         errno = *saved_errno;
 }
 
+/* strerror(3) says that glibc uses a maximum length of 1024 bytes. */
+#define ERRNO_BUF_LEN 1024
+
+/* Note: the lifetime of the compound literal is the immediately surrounding block,
+ * see C11 §6.5.2.5, and
+ * https://stackoverflow.com/questions/34880638/compound-literal-lifetime-and-if-blocks
+ *
+ * Note that we use the GNU variant of strerror_r() here. */
+#define STRERROR(errnum) strerror_r(abs(errnum), (char[ERRNO_BUF_LEN]){}, ERRNO_BUF_LEN)
+
 #define PROTECT_ERRNO _cleanup_(_reset_errno_) __attribute__((unused)) int _saved_errno_ = errno
 
 #define UNPROTECT_ERRNO                         \

@@ -12,6 +12,7 @@
 #include "process-util.h"
 #include "raw-clone.h"
 #include "rm-rf.h"
+#include "stdio-util.h"
 #include "string-util.h"
 #include "util.h"
 
@@ -321,6 +322,42 @@ static void test_system_tasks_max_scale(void) {
         assert_se(system_tasks_max_scale(UINT64_MAX/4, UINT64_MAX) == UINT64_MAX);
 }
 
+static void test_strerror_not_threadsafe(void) {
+        /* Just check that strerror really is not thread-safe. */
+        log_info("strerror(%d) → %s", 200, strerror(200));
+        log_info("strerror(%d) → %s", 201, strerror(201));
+        log_info("strerror(%d) → %s", INT_MAX, strerror(INT_MAX));
+
+        log_info("strerror(%d), strerror(%d) → %p, %p", 200, 201, strerror(200), strerror(201));
+
+        /* This call is not allowed, because the first returned string becomes invalid when
+         * we call strerror the second time:
+         *
+         * log_info("strerror(%d), strerror(%d) → %s, %s", 200, 201, strerror(200), strerror(201));
+         */
+}
+
+static void test_STRERROR(void) {
+        /* Just check that STRERROR really is thread-safe. */
+        log_info("STRERROR(%d) → %s", 200, STRERROR(200));
+        log_info("STRERROR(%d) → %s", 201, STRERROR(201));
+        log_info("STRERROR(%d), STRERROR(%d) → %s, %s", 200, 201, STRERROR(200), STRERROR(201));
+
+        const char *a = STRERROR(200), *b = STRERROR(201);
+        assert_se(strstr(a, "200"));
+        assert_se(strstr(b, "201"));
+
+        /* Check with negative values */
+        assert_se(streq(a, STRERROR(-200)));
+        assert_se(streq(b, STRERROR(-201)));
+
+        const char *c = STRERROR(INT_MAX);
+        char buf[DECIMAL_STR_MAX(int)];
+        xsprintf(buf, "%d", INT_MAX);  /* INT_MAX is hexadecimal, use printf to convert to decimal */
+        log_info("STRERROR(%d) → %s", INT_MAX, c);
+        assert_se(strstr(c, buf));
+}
+
 int main(int argc, char *argv[]) {
         log_parse_environment();
         log_open();
@@ -339,6 +376,9 @@ int main(int argc, char *argv[]) {
         test_physical_memory_scale();
         test_system_tasks_max();
         test_system_tasks_max_scale();
+
+        test_strerror_not_threadsafe();
+        test_STRERROR();
 
         return 0;
 }

@@ -892,7 +892,8 @@ static int transient_unit_from_message(
                 return r;
 
         if (!unit_is_pristine(u))
-                return sd_bus_error_setf(error, BUS_ERROR_UNIT_EXISTS, "Unit %s already exists.", name);
+                return sd_bus_error_setf(error, BUS_ERROR_UNIT_EXISTS,
+                                         "Unit %s was already loaded or has a fragment file.", name);
 
         /* OK, the unit failed to load and is unreferenced, now let's
          * fill in the transient data instead */

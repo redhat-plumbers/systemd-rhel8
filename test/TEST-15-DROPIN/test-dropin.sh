@@ -3,30 +3,32 @@
 set -e
 set -x
 
-_clear_service () {
-    local SERVICE_NAME="${1:?}"
-    systemctl stop "$SERVICE_NAME.service" 2>/dev/null || :
-    rm -f  /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME".service
-    rm -fr /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME".service.d
-    rm -fr /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME".service.{wants,requires}
-    if [[ $SERVICE_NAME == *@ ]]; then
-        systemctl stop "$SERVICE_NAME"*.service 2>/dev/null || :
-        rm -f  /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME"*.service
-        rm -fr /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME"*.service.d
-        rm -fr /{etc,run,usr/lib}/systemd/system/"$SERVICE_NAME"*.service.{wants,requires}
+clear_unit () {
+    local UNIT_NAME="${1:?}"
+    systemctl stop "$UNIT_NAME" 2>/dev/null || :
+    rm -f  /{etc,run,usr/lib}/systemd/system/"$UNIT_NAME"
+    rm -fr /{etc,run,usr/lib}/systemd/system/"$UNIT_NAME".d
+    rm -fr /{etc,run,usr/lib}/systemd/system/"$UNIT_NAME".{wants,requires}
+    if [[ $UNIT_NAME == *@ ]]; then
+        local base="${UNIT_NAME%@*}"
+        local suffix="${UNIT_NAME##*.}"
+        systemctl stop "$base@"*."$suffix" 2>/dev/null || :
+        rm -f  /{etc,run,usr/lib}/systemd/system/"$base@"*."$suffix"
+        rm -fr /{etc,run,usr/lib}/systemd/system/"$base@"*."$suffix".d
+        rm -fr /{etc,run,usr/lib}/systemd/system/"$base@"*."$suffix".{wants,requires}
     fi
 }
 
-clear_services () {
+clear_units () {
     for u in "$@"; do
-        _clear_service "$u"
+        clear_unit "$u"
     done
     systemctl daemon-reload
 }
 
 create_service () {
     local SERVICE_NAME="${1:?}"
-    clear_services "$SERVICE_NAME"
+    clear_units "${SERVICE_NAME}".service
 
     cat >/etc/systemd/system/"$SERVICE_NAME".service <<EOF
 [Unit]
@@ -123,7 +125,7 @@ EOF
     check_ok b ExecCondition "/bin/echo b"
     rm -rf /usr/lib/systemd/system/service.d
 
-    clear_services a b c
+    clear_units {a,b,c}.service
 }
 
 test_hierarchical_dropins () {
@@ -148,7 +150,7 @@ ExecCondition=/bin/echo $dropin
         rm -rf /usr/lib/systemd/system/$dropin
     done
 
-    clear_services a-b-c
+    clear_units a-b-c.service
 }
 
 test_template_dropins () {
@@ -159,7 +161,7 @@ test_template_dropins () {
     ln -s /etc/systemd/system/bar@.service /etc/systemd/system/foo.service.wants/bar@1.service
     check_ok foo Wants bar@1.service
 
-    clear_services foo bar@ yup@
+    clear_units {foo,bar@,yup@}.service
 }
 
 test_alias_dropins () {
@@ -174,7 +176,7 @@ test_alias_dropins () {
     systemctl --quiet is-active b
     systemctl stop a b
     rm /etc/systemd/system/b1.service
-    clear_services a b
+    clear_units {a,b}.service
 
     # A weird behavior: the dependencies for 'a' may vary. It can be
     # changed by loading an alias...
@@ -198,7 +200,7 @@ test_alias_dropins () {
     systemctl stop a x y
     rm /etc/systemd/system/a1.service
 
-    clear_services a x y
+    clear_units {a,x,y}.service
 }
 
 test_masked_dropins () {
@@ -319,7 +321,7 @@ EOF
     ln -sf /dev/null /etc/systemd/system/a.service.requires/b.service
     check_ok a Requires b
 
-    clear_services a b
+    clear_units {a,b}.service
 }
 
 test_invalid_dropins () {
@@ -331,7 +333,7 @@ test_invalid_dropins () {
     # Assertion failed on earlier versions, command exits unsuccessfully on later versions
     systemctl cat a@.service || true
     systemctl stop a
-    clear_services a
+    clear_units a.service
     return 0
 }
 

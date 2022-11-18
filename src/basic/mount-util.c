@@ -634,7 +634,8 @@ bool fstype_is_network(const char *fstype) {
                           "glusterfs",
                           "pvfs2", /* OrangeFS */
                           "ocfs2",
-                          "lustre");
+                          "lustre",
+                          "pdfs");
 }
 
 bool fstype_is_api_vfs(const char *fstype) {

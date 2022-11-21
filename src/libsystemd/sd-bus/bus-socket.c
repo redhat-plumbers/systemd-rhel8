@@ -1266,8 +1266,11 @@ int bus_socket_process_opening(sd_bus *b) {
         assert(b->state == BUS_OPENING);
 
         r = poll(&p, 1, 0);
-        if (r < 0)
+        if (r < 0) {
+                if (ERRNO_IS_TRANSIENT(errno))
+                        return 0;
                 return -errno;
+        }
 
         if (!(p.revents & (POLLOUT|POLLERR|POLLHUP)))
                 return 0;

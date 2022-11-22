@@ -320,7 +320,7 @@ static int write_to_terminal(const char *tty, const char *message) {
         p = message;
         left = strlen(message);
 
-        end = now(CLOCK_MONOTONIC) + TIMEOUT_MSEC*USEC_PER_MSEC;
+        end = usec_add(now(CLOCK_MONOTONIC), TIMEOUT_MSEC*USEC_PER_MSEC);
 
         while (left > 0) {
                 ssize_t n;
@@ -332,20 +332,22 @@ static int write_to_terminal(const char *tty, const char *message) {
                 int k;
 
                 t = now(CLOCK_MONOTONIC);
-
                 if (t >= end)
                         return -ETIME;
 
                 k = poll(&pollfd, 1, (end - t) / USEC_PER_MSEC);
-                if (k < 0)
+                if (k < 0) {
+                        if (ERRNO_IS_TRANSIENT(k))
+                                continue;
                         return -errno;
 
+                }
                 if (k == 0)
                         return -ETIME;
 
                 n = write(fd, p, left);
                 if (n < 0) {
-                        if (errno == EAGAIN)
+                        if (ERRNO_IS_TRANSIENT(errno))
                                 continue;
 
                         return -errno;

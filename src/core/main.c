@@ -1131,7 +1131,7 @@ static int prepare_reexecute(Manager *m, FILE **_f, FDSet **_fds, bool switching
                 return log_error_errno(r, "Failed to create serialization file: %m");
 
         /* Make sure nothing is really destructed when we shut down */
-        m->n_reloading++;
+        manager_reloading_start(m);
         bus_manager_send_reloading(m, true);
 
         fds = fdset_new();

@@ -1578,6 +1578,10 @@ static void manager_preset_all(Manager *m) {
                 log_info("Populated /etc with preset unit settings.");
 }
 
+void manager_reloading_start(Manager *m) {
+        m->n_reloading++;
+}
+
 int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
         int r;
 
@@ -1609,7 +1613,7 @@ int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
          * this is already known, so we increase the counter here
          * already */
         if (serialization)
-                m->n_reloading++;
+                manager_reloading_start(m);
 
         /* First, enumerate what we can from all config files */
         dual_timestamp_get(m->timestamps + MANAGER_TIMESTAMP_UNITS_LOAD_START);
@@ -3093,7 +3097,7 @@ int manager_serialize(Manager *m, FILE *f, FDSet *fds, bool switching_root) {
         assert(f);
         assert(fds);
 
-        m->n_reloading++;
+        manager_reloading_start(m);
 
         fprintf(f, "current-job-id=%"PRIu32"\n", m->current_job_id);
         fprintf(f, "n-installed-jobs=%u\n", m->n_installed_jobs);
@@ -3211,7 +3215,7 @@ int manager_deserialize(Manager *m, FILE *f, FDSet *fds) {
 
         log_debug("Deserializing state...");
 
-        m->n_reloading++;
+        manager_reloading_start(m);
 
         for (;;) {
                 _cleanup_free_ char *line = NULL;
@@ -3455,7 +3459,7 @@ int manager_reload(Manager *m) {
         if (r < 0)
                 return r;
 
-        m->n_reloading++;
+        manager_reloading_start(m);
         bus_manager_send_reloading(m, true);
 
         fds = fdset_new();

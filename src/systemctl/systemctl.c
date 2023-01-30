@@ -8655,6 +8655,65 @@ static int logind_schedule_shutdown(void) {
 #endif
 }
 
+static int halt_main_old(void) {
+        int r;
+
+        r = logind_check_inhibitors(arg_action);
+        if (r < 0)
+                return r;
+
+        if (arg_when > 0)
+                return logind_schedule_shutdown();
+
+        if (geteuid() != 0) {
+                if (arg_dry_run || arg_force > 0) {
+                        (void) must_be_root();
+                        return -EPERM;
+                }
+
+                /* Try logind if we are a normal user and no special
+                 * mode applies. Maybe PolicyKit allows us to shutdown
+                 * the machine. */
+                if (IN_SET(arg_action, ACTION_POWEROFF, ACTION_REBOOT, ACTION_HALT)) {
+                        r = logind_reboot(arg_action);
+                        if (r >= 0)
+                                return r;
+                        if (IN_SET(r, -EOPNOTSUPP, -EINPROGRESS))
+                                /* requested operation is not
+                                 * supported on the local system or
+                                 * already in progress */
+                                return r;
+                        /* on all other errors, try low-level operation */
+                }
+        }
+
+        /* In order to minimize the difference between operation with and
+         * without logind, we explicitly enable non-blocking mode for this,
+         * as logind's shutdown operations are always non-blocking. */
+        arg_no_block = true;
+
+        if (!arg_dry_run && !arg_force)
+                return start_with_fallback();
+
+        assert(geteuid() == 0);
+
+        if (!arg_no_wtmp) {
+                if (sd_booted() > 0)
+                        log_debug("Not writing utmp record, assuming that systemd-update-utmp is used.");
+                else {
+                        r = utmp_put_shutdown();
+                        if (r < 0)
+                                log_warning_errno(r, "Failed to write utmp record: %m");
+                }
+        }
+
+        if (arg_dry_run)
+                return 0;
+
+        r = halt_now(arg_action);
+        return log_error_errno(r, "Failed to reboot: %m");
+}
+
 static int halt_main(void) {
         int r;
 

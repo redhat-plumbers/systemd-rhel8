@@ -8714,7 +8714,7 @@ static int halt_main_old(void) {
         return log_error_errno(r, "Failed to reboot: %m");
 }
 
-static int halt_main(void) {
+static int halt_main_new(void) {
         int r;
 
         /* always try logind first */
@@ -8763,6 +8763,13 @@ static int halt_main(void) {
 
         r = halt_now(arg_action);
         return log_error_errno(r, "Failed to reboot: %m");
+}
+
+static int halt_main(void) {
+        if (getenv_bool("SYSTEMD_NEW_SHUTDOWN") > 0)
+                return halt_main_new();
+        else
+                return halt_main_old();
 }
 
 static int runlevel_main(void) {

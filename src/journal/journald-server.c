@@ -1188,6 +1188,7 @@ int server_process_datagram(sd_event_source *es, int fd, uint32_t revents, void 
 
 static int dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
         Server *s = userdata;
+        int r;
 
         assert(s);
 
@@ -1196,6 +1197,10 @@ static int dispatch_sigusr1(sd_event_source *es, const struct signalfd_siginfo *
         (void) server_flush_to_var(s, false);
         server_sync(s);
         server_vacuum(s, false);
+
+        r = touch("/run/systemd/journal/flushed");
+        if (r < 0)
+                log_warning_errno(r, "Failed to touch /run/systemd/journal/flushed, ignoring: %m");
 
         server_space_usage_message(s, NULL);
         return 0;

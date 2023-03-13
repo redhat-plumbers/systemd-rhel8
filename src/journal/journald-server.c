@@ -1259,8 +1259,6 @@ static int dispatch_sigrtmin1(sd_event_source *es, const struct signalfd_siginfo
 }
 
 static void relinquish_var(Server *s) {
-        int r;
-
         assert(s);
 
         if (s->storage == STORAGE_NONE)
@@ -1278,15 +1276,15 @@ static void relinquish_var(Server *s) {
         if (unlink("/run/systemd/journal/flushed") < 0 && errno != ENOENT)
                 log_warning_errno(errno, "Failed to unlink /run/systemd/journal/flushed, ignoring: %m")  ;
 
-        r = write_timestamp_file_atomic("/run/systemd/journal/relinquished", now(CLOCK_MONOTONIC));
-        if (r < 0)
-                log_warning_errno(r, "Failed to write /run/systemd/journal/relinquished, ignoring: %m");
+        /* NOTE: We don't create our own state file here, because dispatch_sigrtmin2() has to do it anyway.
+         * But if this function is ever called from another place, the creation must be done here too. */
 
         return;
 }
 
 static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
         Server *s = userdata;
+        int r;
 
         assert(s);
         assert(si);
@@ -1294,6 +1292,10 @@ static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo
         log_debug("Received request to relinquish /var from PID " PID_FMT, si->ssi_pid);
 
         relinquish_var(s);
+
+        r = write_timestamp_file_atomic("/run/systemd/journal/relinquished", now(CLOCK_MONOTONIC));
+        if (r < 0)
+                log_warning_errno(r, "Failed to write /run/systemd/journal/relinquished, ignoring: %m");
 
         return 0;
 }

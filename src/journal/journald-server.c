@@ -1258,20 +1258,16 @@ static int dispatch_sigrtmin1(sd_event_source *es, const struct signalfd_siginfo
         return 0;
 }
 
-
-static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
-        Server *s = userdata;
+static void relinquish_var(Server *s) {
         int r;
 
         assert(s);
 
         if (s->storage == STORAGE_NONE)
-                return 0;
+                return;
 
         if (s->runtime_journal && !s->system_journal)
-                return 0;
-
-        log_debug("Received request to relinquish /var from PID " PID_FMT, si->ssi_pid);
+                return;
 
         (void) system_journal_open(s, false, true);
 
@@ -1285,6 +1281,19 @@ static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo
         r = write_timestamp_file_atomic("/run/systemd/journal/relinquished", now(CLOCK_MONOTONIC));
         if (r < 0)
                 log_warning_errno(r, "Failed to write /run/systemd/journal/relinquished, ignoring: %m");
+
+        return;
+}
+
+static int dispatch_sigrtmin2(sd_event_source *es, const struct signalfd_siginfo *si, void *userdata) {
+        Server *s = userdata;
+
+        assert(s);
+        assert(si);
+
+        log_debug("Received request to relinquish /var from PID " PID_FMT, si->ssi_pid);
+
+        relinquish_var(s);
 
         return 0;
 }

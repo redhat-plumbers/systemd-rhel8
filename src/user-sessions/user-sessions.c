@@ -12,7 +12,7 @@
 #include "util.h"
 
 int main(int argc, char*argv[]) {
-        int r, k;
+        int r;
 
         if (argc != 2) {
                 log_error("This program requires one argument.");
@@ -27,12 +27,9 @@ int main(int argc, char*argv[]) {
 
         mac_selinux_init();
 
+        /* We only touch /run/nologin. See create_shutdown_run_nologin_or_warn() for details. */
         if (streq(argv[1], "start")) {
                 r = unlink_or_warn("/run/nologin");
-                k = unlink_or_warn("/etc/nologin");
-                if (k < 0 && r >= 0)
-                        r = k;
-
         } else if (streq(argv[1], "stop"))
                 r = create_shutdown_run_nologin_or_warn();
         else {

@@ -7,7 +7,7 @@ name: "CodeQL"
 on:
   pull_request:
     branches:
-      - master
+      - main
       - rhel-*
     paths:
       - '**/meson.build'
@@ -17,7 +17,7 @@ on:
       - 'tools/**'
   push:
     branches:
-      - master
+      - main
       - rhel-*
 
 permissions:

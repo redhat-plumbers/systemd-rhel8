@@ -11,10 +11,6 @@ pull_request_rules:
         - -check-success=build (stream8, GCC_ASAN)
         # CentOS Stream CI
         - -check-success=CentOS CI (CentOS Stream 8)
-        # CodeQL
-        - -check-success=CodeQL
-        # Other
-        - -check-success=Differential ShellCheck
     actions:
       label:
         add:
@@ -30,10 +26,6 @@ pull_request_rules:
           - check-success=build (stream8, GCC_ASAN)
           # CentOS Stream CI
           - check-success=CentOS CI (CentOS Stream 8)
-          # CodeQL
-          - check-success=CodeQL
-          # Other
-          - check-success=Differential ShellCheck
     actions:
       label:
         remove:

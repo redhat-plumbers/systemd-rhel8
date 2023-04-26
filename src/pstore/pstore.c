@@ -366,7 +366,7 @@ static int run(int argc, char *argv[]) {
 
         /* Move left over files out of pstore */
         for (size_t n = 0; n < list.n_entries; n++)
-                (void) move_file(&list.entries[n], NULL, NULL);
+                (void) move_file(&list.entries[n], "/", "/");
 
         return 0;
 }

@@ -5,7 +5,10 @@ policy:
       - github: systemd/systemd-stable
     exception:
       note:
+        # Exception for RHEL-only commits that should be kept in case of rebase
         - rhel-only
+        # Exception for commits that cannot be cherry-picked due to conflicts but are based on upstream commits
+        - based-on-upstream
   tracker:
     - keyword:
         - 'Resolves: #?'

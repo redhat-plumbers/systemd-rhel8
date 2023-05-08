@@ -669,7 +669,6 @@ int strv_make_nulstr(char **l, char **p, size_t *q) {
         char **i;
 
         assert(p);
-        assert(q);
 
         STRV_FOREACH(i, l) {
                 size_t z;
@@ -694,7 +693,8 @@ int strv_make_nulstr(char **l, char **p, size_t *q) {
 
         assert(n > 0);
         *p = m;
-        *q = n - 1;
+        if (q)
+                *q = n - 1;
 
         m = NULL;
 

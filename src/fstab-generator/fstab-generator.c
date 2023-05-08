@@ -81,7 +81,7 @@ static int write_what(FILE *f, const char *what) {
 
 static int add_swap(
                 const char *what,
-                struct mntent *me,
+                const char *options,
                 MountpointFlags flags) {
 
         _cleanup_free_ char *name = NULL;
@@ -89,7 +89,6 @@ static int add_swap(
         int r;
 
         assert(what);
-        assert(me);
 
         if (access("/proc/swaps", F_OK) < 0) {
                 log_info("Swap not supported, ignoring fstab swap entry for %s.", what);
@@ -119,7 +118,7 @@ static int add_swap(
         if (r < 0)
                 return r;
 
-        r = write_options(f, me->mnt_opts);
+        r = write_options(f, options);
         if (r < 0)
                 return r;
 
@@ -128,7 +127,7 @@ static int add_swap(
                 return log_error_errno(r, "Failed to write unit file %s: %m", name);
 
         /* use what as where, to have a nicer error message */
-        r = generator_write_timeouts(arg_dest, what, what, me->mnt_opts, NULL);
+        r = generator_write_timeouts(arg_dest, what, what, options, NULL);
         if (r < 0)
                 return r;
 
@@ -152,18 +151,14 @@ static int add_swap(
         return 0;
 }
 
-static bool mount_is_network(struct mntent *me) {
-        assert(me);
-
-        return fstab_test_option(me->mnt_opts, "_netdev\0") ||
-               fstype_is_network(me->mnt_type);
+static bool mount_is_network(const char *fstype, const char *options) {
+        return fstab_test_option(options, "_netdev\0") ||
+                (fstype && fstype_is_network(fstype));
 }
 
-static bool mount_in_initrd(struct mntent *me) {
-        assert(me);
-
-        return fstab_test_option(me->mnt_opts, "x-initrd.mount\0") ||
-               streq(me->mnt_dir, "/usr");
+static bool mount_in_initrd(const char *where, const char *options) {
+        return fstab_test_option(options, "x-initrd.mount\0") ||
+                (where && path_equal(where, "/usr"));
 }
 
 static int write_timeout(FILE *f, const char *where, const char *opts,
@@ -501,11 +496,120 @@ static int add_mount(
         return 0;
 }
 
+static MountpointFlags fstab_options_to_flags(const char *options, bool is_swap) {
+        MountpointFlags flags = 0;
+
+        if (fstab_test_option(options, "x-systemd.makefs\0"))
+                flags |= MAKEFS;
+        if (fstab_test_option(options, "x-systemd.growfs\0"))
+                flags |= GROWFS;
+        if (fstab_test_yes_no_option(options, "noauto\0" "auto\0"))
+                flags |= NOAUTO;
+        if (fstab_test_yes_no_option(options, "nofail\0" "fail\0"))
+                flags |= NOFAIL;
+
+        if (!is_swap) {
+                if (fstab_test_option(options,
+                                      "comment=systemd.automount\0"
+                                      "x-systemd.automount\0"))
+                        flags |= AUTOMOUNT;
+        }
+
+        return flags;
+}
+
+static int parse_fstab_one(
+                const char *source,
+                const char *what_original,
+                const char *where_original,
+                const char *fstype,
+                const char *options,
+                int passno,
+                bool initrd) {
+
+        _cleanup_free_ char *where = NULL, *what = NULL, *canonical_where = NULL;
+        const char *post;
+        MountpointFlags flags;
+        int r;
+
+        assert(what_original);
+        assert(where_original);
+        assert(fstype);
+        assert(options);
+
+        if (initrd && !mount_in_initrd(where_original, options))
+                return 0;
+
+        what = fstab_node_to_udev_node(what_original);
+        if (!what)
+                return log_oom();
+
+        if (is_device_path(what) && path_is_read_only_fs("sys") > 0) {
+                log_info("Running in a container, ignoring fstab device entry for %s.", what);
+                return 0;
+        }
+
+        where = strdup(where_original);
+        if (!where)
+                return log_oom();
+
+        if (is_path(where)) {
+                path_simplify(where, false);
+
+                /* Follow symlinks here; see 5261ba901845c084de5a8fd06500ed09bfb0bd80 which makes sense for
+                 * mount units, but causes problems since it historically worked to have symlinks in e.g.
+                 * /etc/fstab. So we canonicalize here. Note that we use CHASE_NONEXISTENT to handle the case
+                 * where a symlink refers to another mount target; this works assuming the sub-mountpoint
+                 * target is the final directory. */
+                r = chase_symlinks(where, initrd ? "/sysroot" : NULL,
+                                    CHASE_PREFIX_ROOT | CHASE_NONEXISTENT,
+                                    &canonical_where);
+                if (r < 0) /* If we can't canonicalize we continue on as if it wasn't a symlink */
+                        log_debug_errno(r, "Failed to read symlink target for %s, ignoring: %m", where);
+                else if (streq(canonical_where, where)) /* If it was fully canonicalized, suppress the change */
+                        canonical_where = mfree(canonical_where);
+                else
+                        log_debug("Canonicalized what=%s where=%s to %s", what, where, canonical_where);
+        }
+
+        flags = fstab_options_to_flags(options, streq_ptr(fstype, "swap"));
+
+        log_debug("Found entry what=%s where=%s type=%s makefs=%s noauto=%s nofail=%s",
+                    what, where, strna(fstype),
+                    yes_no(flags & MAKEFS),
+                    yes_no(flags & NOAUTO), yes_no(flags & NOFAIL));
+
+        if (streq(fstype, "swap"))
+                return add_swap(what, options, flags);
+
+        if (initrd)
+                post = SPECIAL_INITRD_FS_TARGET;
+        else if (mount_is_network(fstype, options))
+                post = SPECIAL_REMOTE_FS_TARGET;
+        else
+                post = SPECIAL_LOCAL_FS_TARGET;
+
+        r = add_mount(arg_dest,
+                      what,
+                      canonical_where ?: where,
+                      canonical_where ? where: NULL,
+                      fstype,
+                      options,
+                      passno,
+                      flags,
+                      post,
+                      source);
+        if (r < 0)
+                return log_oom();
+
+        return 1;
+}
+
 static int parse_fstab(bool initrd) {
         _cleanup_endmntent_ FILE *f = NULL;
         const char *fstab_path;
         struct mntent *me;
-        int r = 0;
+        int r, ret = 0;
 
         fstab_path = initrd ? "/sysroot/etc/fstab" : "/etc/fstab";
         f = setmntent(fstab_path, "re");
@@ -517,89 +621,12 @@ static int parse_fstab(bool initrd) {
         }
 
         while ((me = getmntent(f))) {
-                _cleanup_free_ char *where = NULL, *what = NULL, *canonical_where = NULL;
-                bool makefs, growfs, noauto, nofail;
-                int k;
-
-                if (initrd && !mount_in_initrd(me))
-                        continue;
-
-                what = fstab_node_to_udev_node(me->mnt_fsname);
-                if (!what)
-                        return log_oom();
-
-                if (is_device_path(what) && path_is_read_only_fs("sys") > 0) {
-                        log_info("Running in a container, ignoring fstab device entry for %s.", what);
-                        continue;
-                }
-
-                where = strdup(me->mnt_dir);
-                if (!where)
-                        return log_oom();
-
-                if (is_path(where)) {
-                        path_simplify(where, false);
-
-                        /* Follow symlinks here; see 5261ba901845c084de5a8fd06500ed09bfb0bd80 which makes sense for
-                         * mount units, but causes problems since it historically worked to have symlinks in e.g.
-                         * /etc/fstab. So we canonicalize here. Note that we use CHASE_NONEXISTENT to handle the case
-                         * where a symlink refers to another mount target; this works assuming the sub-mountpoint
-                         * target is the final directory. */
-                        r = chase_symlinks(where, initrd ? "/sysroot" : NULL,
-                                           CHASE_PREFIX_ROOT | CHASE_NONEXISTENT,
-                                           &canonical_where);
-                        if (r < 0) /* If we can't canonicalize we continue on as if it wasn't a symlink */
-                                log_debug_errno(r, "Failed to read symlink target for %s, ignoring: %m", where);
-                        else if (streq(canonical_where, where)) /* If it was fully canonicalized, suppress the change */
-                                canonical_where = mfree(canonical_where);
-                        else
-                                log_debug("Canonicalized what=%s where=%s to %s", what, where, canonical_where);
-                }
-
-                makefs = fstab_test_option(me->mnt_opts, "x-systemd.makefs\0");
-                growfs = fstab_test_option(me->mnt_opts, "x-systemd.growfs\0");
-                noauto = fstab_test_yes_no_option(me->mnt_opts, "noauto\0" "auto\0");
-                nofail = fstab_test_yes_no_option(me->mnt_opts, "nofail\0" "fail\0");
-
-                log_debug("Found entry what=%s where=%s type=%s makefs=%s noauto=%s nofail=%s",
-                          what, where, me->mnt_type,
-                          yes_no(makefs),
-                          yes_no(noauto), yes_no(nofail));
-
-                if (streq(me->mnt_type, "swap"))
-                        k = add_swap(what, me,
-                                     makefs*MAKEFS | growfs*GROWFS | noauto*NOAUTO | nofail*NOFAIL);
-                else {
-                        bool automount;
-                        const char *post;
-
-                        automount = fstab_test_option(me->mnt_opts,
-                                                      "comment=systemd.automount\0"
-                                                      "x-systemd.automount\0");
-                        if (initrd)
-                                post = SPECIAL_INITRD_FS_TARGET;
-                        else if (mount_is_network(me))
-                                post = SPECIAL_REMOTE_FS_TARGET;
-                        else
-                                post = SPECIAL_LOCAL_FS_TARGET;
-
-                        k = add_mount(arg_dest,
-                                      what,
-                                      canonical_where ?: where,
-                                      canonical_where ? where: NULL,
-                                      me->mnt_type,
-                                      me->mnt_opts,
-                                      me->mnt_passno,
-                                      makefs*MAKEFS | growfs*GROWFS | noauto*NOAUTO | nofail*NOFAIL | automount*AUTOMOUNT,
-                                      post,
-                                      fstab_path);
-                }
-
-                if (r >= 0 && k < 0)
-                        r = k;
+                r = parse_fstab_one(fstab_path, me->mnt_fsname, me->mnt_dir, me->mnt_type, me->mnt_opts, me->mnt_passno, initrd);
+                if (r < 0 && ret >= 0)
+                        ret = r;
         }
 
-        return r;
+        return ret;
 }
 
 static int add_sysroot_mount(void) {

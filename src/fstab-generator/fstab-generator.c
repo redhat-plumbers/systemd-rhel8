@@ -900,7 +900,7 @@ static int determine_root(void) {
 }
 
 int main(int argc, char *argv[]) {
-        int r = 0;
+        int r, ret = 0;
 
         if (argc > 1 && argc != 4) {
                 log_error("This program takes three or no arguments.");
@@ -927,38 +927,39 @@ int main(int argc, char *argv[]) {
 
         /* Always honour root= and usr= in the kernel command line if we are in an initrd */
         if (in_initrd()) {
-                int k;
-
                 r = add_sysroot_mount();
+                if (r < 0 && ret >= 0)
+                        ret = r;
 
-                k = add_sysroot_usr_mount();
-                if (k < 0)
-                        r = k;
+                r = add_sysroot_usr_mount();
+                if (r < 0 && ret >= 0)
+                        ret = r;
 
-                k = add_volatile_root();
-                if (k < 0)
-                        r = k;
-        } else
+                r = add_volatile_root();
+                if (r < 0 && ret >= 0)
+                        ret = r;
+        } else {
                 r = add_volatile_var();
+                if (r < 0 && ret >= 0)
+                        ret = r;
+        }
 
         /* Honour /etc/fstab only when that's enabled */
         if (arg_fstab_enabled) {
-                int k;
-
                 log_debug("Parsing /etc/fstab");
 
                 /* Parse the local /etc/fstab, possibly from the initrd */
-                k = parse_fstab(false);
-                if (k < 0)
-                        r = k;
+                r = parse_fstab(false);
+                if (r < 0 && ret >= 0)
+                        ret = r;
 
                 /* If running in the initrd also parse the /etc/fstab from the host */
                 if (in_initrd()) {
                         log_debug("Parsing /sysroot/etc/fstab");
 
-                        k = parse_fstab(true);
-                        if (k < 0)
-                                r = k;
+                        r = parse_fstab(true);
+                        if (r < 0 && ret >= 0)
+                                ret = r;
                 }
         }
 
@@ -971,5 +972,5 @@ int main(int argc, char *argv[]) {
         free(arg_usr_fstype);
         free(arg_usr_options);
 
-        return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+        return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

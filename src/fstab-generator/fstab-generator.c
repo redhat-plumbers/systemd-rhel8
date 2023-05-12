@@ -100,6 +100,12 @@ static int add_swap(
                 return 0;
         }
 
+
+        log_debug("Found swap entry what=%s makefs=%s growfs=%s noauto=%s nofail=%s",
+                  what,
+                  yes_no(flags & MAKEFS), yes_no(flags & GROWFS),
+                  yes_no(flags & NOAUTO), yes_no(flags & NOFAIL));
+
         r = unit_name_from_path(what, ".swap", &name);
         if (r < 0)
                 return log_error_errno(r, "Failed to generate unit name: %m");
@@ -530,15 +536,17 @@ static int parse_fstab_one(
         _cleanup_free_ char *where = NULL, *what = NULL, *canonical_where = NULL;
         const char *post;
         MountpointFlags flags;
+        bool is_swap;
         int r;
 
         assert(what_original);
-        assert(where_original);
         assert(fstype);
         assert(options);
 
         if (initrd && !mount_in_initrd(where_original, options))
                 return 0;
+
+        is_swap = streq_ptr(fstype, "swap");
 
         what = fstab_node_to_udev_node(what_original);
         if (!what)
@@ -548,6 +556,13 @@ static int parse_fstab_one(
                 log_info("Running in a container, ignoring fstab device entry for %s.", what);
                 return 0;
         }
+
+        flags = fstab_options_to_flags(options, is_swap);
+
+        if (is_swap)
+                return add_swap(what, options, flags);
+
+        assert(where_original); /* 'where' is not necessary for swap entry. */
 
         where = strdup(where_original);
         if (!where)
@@ -572,15 +587,10 @@ static int parse_fstab_one(
                         log_debug("Canonicalized what=%s where=%s to %s", what, where, canonical_where);
         }
 
-        flags = fstab_options_to_flags(options, streq_ptr(fstype, "swap"));
-
         log_debug("Found entry what=%s where=%s type=%s makefs=%s noauto=%s nofail=%s",
                     what, where, strna(fstype),
                     yes_no(flags & MAKEFS),
                     yes_no(flags & NOAUTO), yes_no(flags & NOFAIL));
-
-        if (streq(fstype, "swap"))
-                return add_swap(what, options, flags);
 
         if (initrd)
                 post = SPECIAL_INITRD_FS_TARGET;

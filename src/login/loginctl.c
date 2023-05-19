@@ -66,6 +66,8 @@ typedef struct SessionStatusInfo {
         const char *state;
         const char *scope;
         const char *desktop;
+        bool idle_hint;
+        dual_timestamp idle_hint_timestamp;
 } SessionStatusInfo;
 
 static OutputFlags get_output_flags(void) {
@@ -135,7 +137,9 @@ static int show_table(Table *table, const char *word) {
 static int list_sessions(int argc, char *argv[], void *userdata) {
 
         static const struct bus_properties_map map[]  = {
-                { "TTY",    "s",    NULL,   offsetof(SessionStatusInfo, tty)    },
+                { "IdleHint",               "b",    NULL,   offsetof(SessionStatusInfo, idle_hint)                      },
+                { "IdleSinceHintMonotonic", "t",    NULL,   offsetof(SessionStatusInfo, idle_hint_timestamp.monotonic)  },
+                { "TTY",                    "s",    NULL,   offsetof(SessionStatusInfo, tty)                            },
                 {},
         };
 
@@ -165,7 +169,7 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
         if (r < 0)
                 return bus_log_parse_error(r);
 
-        table = table_new("SESSION", "UID", "USER", "SEAT", "TTY");
+        table = table_new("SESSION", "UID", "USER", "SEAT", "TTY", "IDLE", "SINCE");
         if (!table)
                 return log_oom();
 
@@ -188,12 +192,11 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
 
                 r = bus_map_all_properties(bus, "org.freedesktop.login1", object, map, BUS_MAP_BOOLEAN_AS_BOOL, &e, &m, &i);
                 if (r < 0) {
-                        if (sd_bus_error_has_name(&e, SD_BUS_ERROR_UNKNOWN_OBJECT))
-                                /* The session is already closed when we're querying the property */
-                                continue;
-
-                        log_warning_errno(r, "Failed to get properties of session %s, ignoring: %s",
-                                          id, bus_error_message(&e, r));
+                        log_full_errno(sd_bus_error_has_name(&e, SD_BUS_ERROR_UNKNOWN_OBJECT) ? LOG_DEBUG : LOG_WARNING,
+                                       r,
+                                       "Failed to get properties of session %s, ignoring: %s",
+                                       id, bus_error_message(&e, r));
+                        continue;
                 }
 
                 r = table_add_many(table,
@@ -201,7 +204,15 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
                                    TABLE_UINT32, uid,
                                    TABLE_STRING, user,
                                    TABLE_STRING, seat,
-                                   TABLE_STRING, strna(i.tty));
+                                   TABLE_STRING, strna(i.tty),
+                                   TABLE_BOOLEAN, i.idle_hint);
+                if (r < 0)
+                        return log_error_errno(r, "Failed to add row to table: %m");
+
+                if (i.idle_hint)
+                        r = table_add_cell(table, NULL, TABLE_TIMESTAMP_RELATIVE, &i.idle_hint_timestamp.monotonic);
+                else
+                        r = table_add_cell(table, NULL, TABLE_EMPTY, NULL);
                 if (r < 0)
                         return log_error_errno(r, "Failed to add row to table: %m");
         }

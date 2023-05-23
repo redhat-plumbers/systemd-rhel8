@@ -147,7 +147,7 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
         (void) table_set_align_percent(table, TABLE_HEADER_CELL(1), 100);
 
         for (;;) {
-                _cleanup_(sd_bus_error_free) sd_bus_error error_tty = SD_BUS_ERROR_NULL;
+                _cleanup_(sd_bus_error_free) sd_bus_error e = SD_BUS_ERROR_NULL;
                 _cleanup_(sd_bus_message_unrefp) sd_bus_message *reply_tty = NULL;
                 const char *id, *user, *seat, *object, *tty = NULL;
                 uint32_t uid;
@@ -164,11 +164,11 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
                                 object,
                                 "org.freedesktop.login1.Session",
                                 "TTY",
-                                &error_tty,
+                                &e,
                                 &reply_tty,
                                 "s");
                 if (r < 0)
-                        log_warning_errno(r, "Failed to get TTY for session %s: %s", id, bus_error_message(&error_tty, r));
+                        log_warning_errno(r, "Failed to get TTY for session %s: %s", id, bus_error_message(&e, r));
                 else {
                         r = sd_bus_message_read(reply_tty, "s", &tty);
                         if (r < 0)

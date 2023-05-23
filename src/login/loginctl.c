@@ -473,6 +473,8 @@ static int print_session_status_info(sd_bus *bus, const char *path, bool *new_li
                 { "Remote",              "b",    NULL,                     offsetof(SessionStatusInfo, remote)              },
                 { "Timestamp",           "t",    NULL,                     offsetof(SessionStatusInfo, timestamp.realtime)  },
                 { "TimestampMonotonic",  "t",    NULL,                     offsetof(SessionStatusInfo, timestamp.monotonic) },
+                { "IdleHint",            "b",    NULL,                     offsetof(SessionStatusInfo, idle_hint)           },
+                { "IdleSinceHint",       "t",    NULL,                     offsetof(SessionStatusInfo, idle_hint_timestamp) },
                 { "User",                "(uo)", prop_map_first_of_struct, offsetof(SessionStatusInfo, uid)                 },
                 { "Seat",                "(so)", prop_map_first_of_struct, offsetof(SessionStatusInfo, seat)                },
                 {}
@@ -570,6 +572,14 @@ static int print_session_status_info(sd_bus *bus, const char *path, bool *new_li
 
         if (i.state)
                 printf("\t   State: %s\n", i.state);
+
+        if (i.idle_hint && i.idle_hint_timestamp > 0) {
+                s1 = format_timestamp_relative(since1, sizeof(since1), i.idle_hint_timestamp);
+                s2 = format_timestamp(since2, sizeof(since2), i.idle_hint_timestamp);
+
+                printf("\t    Idle: %s since %s (%s)\n", yes_no(i.idle_hint), s2, s1);
+        } else
+                printf("\t    Idle: %s\n", yes_no(i.idle_hint));
 
         if (i.scope) {
                 printf("\t    Unit: %s\n", i.scope);

@@ -533,7 +533,7 @@ static int parse_fstab_one(
                 int passno,
                 bool initrd) {
 
-        _cleanup_free_ char *where = NULL, *what = NULL, *canonical_where = NULL;
+        _cleanup_free_ char *where = NULL, *what = NULL;
         const char *post;
         MountpointFlags flags;
         bool is_swap;
@@ -564,33 +564,38 @@ static int parse_fstab_one(
 
         assert(where_original); /* 'where' is not necessary for swap entry. */
 
-        where = strdup(where_original);
-        if (!where)
-                return log_oom();
-
-        if (is_path(where)) {
-                path_simplify(where, false);
-
-                /* Follow symlinks here; see 5261ba901845c084de5a8fd06500ed09bfb0bd80 which makes sense for
-                 * mount units, but causes problems since it historically worked to have symlinks in e.g.
-                 * /etc/fstab. So we canonicalize here. Note that we use CHASE_NONEXISTENT to handle the case
-                 * where a symlink refers to another mount target; this works assuming the sub-mountpoint
-                 * target is the final directory. */
-                r = chase_symlinks(where, initrd ? "/sysroot" : NULL,
-                                    CHASE_PREFIX_ROOT | CHASE_NONEXISTENT,
-                                    &canonical_where);
-                if (r < 0) /* If we can't canonicalize we continue on as if it wasn't a symlink */
-                        log_debug_errno(r, "Failed to read symlink target for %s, ignoring: %m", where);
-                else if (streq(canonical_where, where)) /* If it was fully canonicalized, suppress the change */
-                        canonical_where = mfree(canonical_where);
-                else
-                        log_debug("Canonicalized what=%s where=%s to %s", what, where, canonical_where);
+        if (!is_path(where_original)) {
+                log_warning("Mount point %s is not a valid path, ignoring.", where);
+                return 0;
         }
 
+        /* Follow symlinks here; see 5261ba901845c084de5a8fd06500ed09bfb0bd80 which makes sense for
+         * mount units, but causes problems since it historically worked to have symlinks in e.g.
+         * /etc/fstab. So we canonicalize here. Note that we use CHASE_NONEXISTENT to handle the case
+         * where a symlink refers to another mount target; this works assuming the sub-mountpoint
+         * target is the final directory. */
+        r = chase_symlinks(where_original, initrd ? "/sysroot" : NULL,
+                            CHASE_PREFIX_ROOT | CHASE_NONEXISTENT,
+                            &where);
+        if (r < 0) { /* If we can't canonicalize we continue on as if it wasn't a symlink */
+                log_debug_errno(r, "Failed to read symlink target for %s, ignoring: %m", where_original);
+
+                where = strdup(where_original);
+                if (!where)
+                        return log_oom();
+
+                path_simplify(where, false);
+        }
+
+        if (streq(where, where_original)) /* If it was fully canonicalized, suppress the change */
+                where = mfree(where);
+        else
+                log_debug("Canonicalized what=%s where=%s to %s", what, where_original, where);
+
         log_debug("Found entry what=%s where=%s type=%s makefs=%s noauto=%s nofail=%s",
-                    what, where, strna(fstype),
-                    yes_no(flags & MAKEFS),
-                    yes_no(flags & NOAUTO), yes_no(flags & NOFAIL));
+                  what, where, strna(fstype),
+                  yes_no(flags & MAKEFS),
+                  yes_no(flags & NOAUTO), yes_no(flags & NOFAIL));
 
         if (initrd)
                 post = SPECIAL_INITRD_FS_TARGET;
@@ -601,8 +606,8 @@ static int parse_fstab_one(
 
         r = add_mount(arg_dest,
                       what,
-                      canonical_where ?: where,
-                      canonical_where ? where: NULL,
+                      where ?: where_original,
+                      where ? where_original : NULL,
                       fstype,
                       options,
                       passno,

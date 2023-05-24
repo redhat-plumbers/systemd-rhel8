@@ -67,7 +67,7 @@ typedef struct SessionStatusInfo {
         const char *scope;
         const char *desktop;
         bool idle_hint;
-        dual_timestamp idle_hint_timestamp;
+        usec_t idle_hint_timestamp;
 } SessionStatusInfo;
 
 static OutputFlags get_output_flags(void) {
@@ -136,10 +136,10 @@ static int show_table(Table *table, const char *word) {
 
 static int list_sessions(int argc, char *argv[], void *userdata) {
 
-        static const struct bus_properties_map map[]  = {
-                { "IdleHint",               "b",    NULL,   offsetof(SessionStatusInfo, idle_hint)                      },
-                { "IdleSinceHintMonotonic", "t",    NULL,   offsetof(SessionStatusInfo, idle_hint_timestamp.monotonic)  },
-                { "TTY",                    "s",    NULL,   offsetof(SessionStatusInfo, tty)                            },
+        static const struct bus_properties_map map[] = {
+                { "IdleHint",      "b", NULL, offsetof(SessionStatusInfo, idle_hint)           },
+                { "IdleSinceHint", "t", NULL, offsetof(SessionStatusInfo, idle_hint_timestamp) },
+                { "TTY",           "s", NULL, offsetof(SessionStatusInfo, tty)                 },
                 {},
         };
 
@@ -210,7 +210,7 @@ static int list_sessions(int argc, char *argv[], void *userdata) {
                         return log_error_errno(r, "Failed to add row to table: %m");
 
                 if (i.idle_hint)
-                        r = table_add_cell(table, NULL, TABLE_TIMESTAMP_RELATIVE, &i.idle_hint_timestamp.monotonic);
+                        r = table_add_cell(table, NULL, TABLE_TIMESTAMP_RELATIVE, &i.idle_hint_timestamp);
                 else
                         r = table_add_cell(table, NULL, TABLE_EMPTY, NULL);
                 if (r < 0)

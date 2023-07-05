@@ -179,6 +179,23 @@ int session_set_leader(Session *s, pid_t pid) {
         return 1;
 }
 
+int session_invalidate_leader(Session *s) {
+        assert(s);
+
+        if (s->leader <= 0)
+                return 0;
+
+        if (pid_is_alive(s->leader))
+                return 0;
+
+        (void) hashmap_remove_value(s->manager->sessions_by_leader, PID_TO_PTR(s->leader), s);
+        s->leader = 0;
+
+        (void) session_save(s);
+
+        return 1;
+}
+
 static void session_save_devices(Session *s, FILE *f) {
         SessionDevice *sd;
         Iterator i;
@@ -1092,6 +1109,7 @@ static int session_dispatch_fifo(sd_event_source *es, int fd, uint32_t revents, 
         /* EOF on the FIFO means the session died abnormally. */
 
         session_remove_fifo(s);
+        session_invalidate_leader(s);
         session_stop(s, false);
 
         return 1;

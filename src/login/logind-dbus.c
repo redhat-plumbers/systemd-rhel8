@@ -3169,6 +3169,9 @@ int match_job_removed(sd_bus_message *message, void *userdata, sd_bus_error *err
                         session->scope_job = mfree(session->scope_job);
                         (void) session_jobs_reply(session, unit, result);
 
+                        /* Scope job is done so leader should be gone as well. */
+                        session_invalidate_leader(session);
+
                         session_save(session);
                         user_save(session->user);
                 }

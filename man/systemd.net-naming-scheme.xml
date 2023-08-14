@@ -334,6 +334,12 @@
           <para>Same as naming scheme <constant>rhel-8.7</constant>.</para>
         </varlistentry>
 
+        <varlistentry>
+          <term><constant>rhel-8.9</constant></term>
+
+          <para>Same as naming scheme <constant>rhel-8.7</constant>.</para>
+        </varlistentry>
+
         <para>Note that <constant>latest</constant> may be used to denote the latest scheme known to this
         particular version of systemd.</para>
     </variablelist>

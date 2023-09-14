@@ -1,0 +1,13 @@
+labels:
+  missing-tracker: tracker/missing
+  invalid-product: tracker/invalid-product
+  invalid-component: tracker/invalid-component
+  unapproved: tracker/unapproved
+products:
+  - CentOS Stream 8
+  - rhel-8.2.0
+  - rhel-8.4.0
+  - rhel-8.6.0
+  - rhel-8.8.0
+  - rhel-8.9.0
+  - rhel-8.10.0

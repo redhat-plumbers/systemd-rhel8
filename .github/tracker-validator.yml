@@ -4,6 +4,7 @@ labels:
   invalid-component: tracker/invalid-component
   unapproved: tracker/unapproved
 products:
+  - Red Hat Enterprise Linux 8
   - CentOS Stream 8
   - rhel-8.2.0
   - rhel-8.4.0

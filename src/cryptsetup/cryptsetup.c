@@ -13,6 +13,7 @@
 #include "device-util.h"
 #include "escape.h"
 #include "fileio.h"
+#include "fstab-util.h"
 #include "log.h"
 #include "mount-util.h"
 #include "parse-util.h"
@@ -318,7 +319,7 @@ static char *disk_mount_point(const char *label) {
         if (asprintf(&device, "/dev/mapper/%s", label) < 0)
                 return NULL;
 
-        f = setmntent("/etc/fstab", "re");
+        f = setmntent(fstab_path(), "re");
         if (!f)
                 return NULL;
 

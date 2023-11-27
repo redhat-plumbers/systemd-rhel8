@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "exit-status.h"
+#include "fstab-util.h"
 #include "log.h"
 #include "mount-setup.h"
 #include "mount-util.h"
@@ -39,14 +40,14 @@ int main(int argc, char *argv[]) {
 
         umask(0022);
 
-        f = setmntent("/etc/fstab", "re");
+        f = setmntent(fstab_path(), "re");
         if (!f) {
                 if (errno == ENOENT) {
                         r = 0;
                         goto finish;
                 }
 
-                r = log_error_errno(errno, "Failed to open /etc/fstab: %m");
+                r = log_error_errno(errno, "Failed to open %s: %m", fstab_path());
                 goto finish;
         }
 

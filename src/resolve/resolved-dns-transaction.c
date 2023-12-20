@@ -2520,7 +2520,7 @@ static int dns_transaction_requires_rrsig(DnsTransaction *t, DnsResourceRecord *
                         if (r == 0)
                                 continue;
 
-                        return t->answer_authenticated;
+                        return dt->answer_authenticated;
                 }
 
                 return true;
@@ -2550,7 +2550,7 @@ static int dns_transaction_requires_rrsig(DnsTransaction *t, DnsResourceRecord *
                          * RR for us. This means we are not at a zone cut. In
                          * this case, we require authentication if the SOA
                          * lookup was authenticated too. */
-                        return t->answer_authenticated;
+                        return dt->answer_authenticated;
                 }
 
                 return true;

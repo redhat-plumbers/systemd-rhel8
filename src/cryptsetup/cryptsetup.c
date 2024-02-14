@@ -772,7 +772,18 @@ int main(int argc, char *argv[]) {
 
                 crypt_set_log_callback(cd, cryptsetup_log_glue, NULL);
 
-                r = crypt_deactivate(cd, argv[2]);
+                /* Terrible hack for RHEL8. We are missing the blockdev@.target, so we can't
+                 correctly express some dependencies. That means when systemd-cryptsetup detach
+                can fail, because for example a filesystem is still mounted on top of the device.
+                This can cause shutdown to hang forever. See https://issues.redhat.com/browse/RHEL-6210
+                So as a workaround, let's try to detach the device multiple times before giving up. */
+                for (int i = 0; i < 10; i++) {
+                        r = crypt_deactivate(cd, argv[2]);
+                        if (r == 0)
+                                break;
+                        sleep(1);
+                }
+
                 if (r < 0) {
                         log_error_errno(r, "Failed to deactivate: %m");
                         goto finish;

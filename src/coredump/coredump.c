@@ -1262,6 +1262,8 @@ static int gather_pid_metadata(
                 context->meta[CONTEXT_EXE] = t;
 
         if (cg_pid_get_unit(pid, &t) >= 0) {
+                context->meta[CONTEXT_UNIT] = t;
+
                 if (!is_journald_crash(context)) {
                         /* OK, now we know it's not the journal, hence we can make use of it now. */
                         log_set_target(LOG_TARGET_JOURNAL_OR_KMSG);
@@ -1275,8 +1277,7 @@ static int gather_pid_metadata(
                 }
 
                 set_iovec_string_field(iovec, n_iovec, "COREDUMP_UNIT=", context->meta[CONTEXT_UNIT]);
-        } else
-                context->meta[CONTEXT_UNIT] = t;
+        }
 
         if (cg_pid_get_user_unit(pid, &t) >= 0)
                 set_iovec_field_free(iovec, n_iovec, "COREDUMP_USER_UNIT=", t);

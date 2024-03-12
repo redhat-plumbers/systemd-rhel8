@@ -10,4 +10,5 @@ session required pam_selinux.so nottys open
 session required pam_loginuid.so
 session optional pam_keyinit.so force revoke
 session required pam_namespace.so
+session optional pam_umask.so silent
 session optional pam_systemd.so

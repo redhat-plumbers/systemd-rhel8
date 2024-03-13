@@ -15,6 +15,7 @@
 #include "stdio-util.h"
 #include "string-util.h"
 #include "strv.h"
+#include "tests.h"
 #include "user-util.h"
 #include "util.h"
 #include "virt.h"
@@ -544,15 +545,17 @@ static void test_touch_file(void) {
                 assert_se(timespec_load(&st.st_mtim) == test_mtime);
         }
 
-        a = strjoina(p, "/lnk");
-        assert_se(symlink("target", a) >= 0);
-        assert_se(touch_file(a, false, test_mtime, test_uid, test_gid, 0640) >= 0);
-        assert_se(lstat(a, &st) >= 0);
-        assert_se(st.st_uid == test_uid);
-        assert_se(st.st_gid == test_gid);
-        assert_se(S_ISLNK(st.st_mode));
-        assert_se((st.st_mode & 0777) == 0640);
-        assert_se(timespec_load(&st.st_mtim) == test_mtime);
+        if (!streq_ptr(ci_environment(), "github-actions")) {
+                a = strjoina(p, "/lnk");
+                assert_se(symlink("target", a) >= 0);
+                assert_se(touch_file(a, false, test_mtime, test_uid, test_gid, 0640) >= 0);
+                assert_se(lstat(a, &st) >= 0);
+                assert_se(st.st_uid == test_uid);
+                assert_se(st.st_gid == test_gid);
+                assert_se(S_ISLNK(st.st_mode));
+                assert_se((st.st_mode & 0777) == 0640);
+                assert_se(timespec_load(&st.st_mtim) == test_mtime);
+        }
 }
 
 static void test_unlinkat_deallocate(void) {

@@ -2,7 +2,7 @@ name: Deploy systemd man to Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ rhel-8.10.0 ]
     paths:
       - man/*
       - .github/workflows/deploy-man-pages.yml

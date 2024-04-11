@@ -16,5 +16,5 @@ products:
   - rhel-8.8.0.z
   - rhel-8.9.0
   - rhel-8.9.0.z
-  - rhel-8.10.0
-  - rhel-8.10.0.z
+  - rhel-8.10
+  - rhel-8.10.z

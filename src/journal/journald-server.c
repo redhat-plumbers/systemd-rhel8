@@ -495,6 +495,33 @@ void server_rotate(Server *s) {
         server_process_deferred_closes(s);
 }
 
+static void server_rotate_journal(Server *s, JournalFile *f, uid_t uid) {
+        int r;
+
+        assert(s);
+        assert(f);
+
+        /* This is similar to server_rotate(), but rotates only specified journal file.
+         *
+         * 💣💣💣 This invalidate 'f', and the caller cannot reuse the passed JournalFile object. 💣💣💣 */
+
+        if (f == s->system_journal)
+                (void) do_rotate(s, &s->system_journal, "system", s->seal, /* uid= */ 0);
+        else if (f == s->runtime_journal)
+                (void) do_rotate(s, &s->runtime_journal, "runtime", /* seal= */ false, /* uid= */ 0);
+        else {
+                assert(ordered_hashmap_get(s->user_journals, UID_TO_PTR(uid)) == f);
+                r = do_rotate(s, &f, "user", s->seal, uid);
+                if (r >= 0)
+                        ordered_hashmap_replace(s->user_journals, UID_TO_PTR(uid), f);
+                else if (!f)
+                        /* Old file has been closed and deallocated */
+                        ordered_hashmap_remove(s->user_journals, UID_TO_PTR(uid));
+        }
+
+        server_process_deferred_closes(s);
+}
+
 void server_sync(Server *s) {
         JournalFile *f;
         Iterator i;
@@ -647,7 +674,7 @@ static bool shall_try_append_again(JournalFile *f, int r) {
 }
 
 static void write_to_journal(Server *s, uid_t uid, struct iovec *iovec, size_t n, int priority) {
-        bool vacuumed = false, rotate = false;
+        bool vacuumed = false;
         struct dual_timestamp ts;
         JournalFile *f;
         int r;
@@ -669,22 +696,26 @@ static void write_to_journal(Server *s, uid_t uid, struct iovec *iovec, size_t n
                  * bisection works correctly. */
 
                 log_debug("Time jumped backwards, rotating.");
-                rotate = true;
-        } else {
 
-                f = find_journal(s, uid);
-                if (!f)
-                        return;
-
-                if (journal_file_rotate_suggested(f, s->max_file_usec)) {
-                        log_debug("%s: Journal header limits reached or header out-of-date, rotating.", f->path);
-                        rotate = true;
-                }
+                server_rotate(s);
+                server_vacuum(s, /* verbose = */ false);
+                vacuumed = true;
         }
 
-        if (rotate) {
-                server_rotate(s);
-                server_vacuum(s, false);
+        f = find_journal(s, uid);
+        if (!f)
+                return;
+
+        if (journal_file_rotate_suggested(f, s->max_file_usec)) {
+                if (vacuumed) {
+                        log_warning("Suppressing rotation, as we already rotated immediately before write attempt. Giving up.");
+                        return;
+                }
+
+                log_debug("%s: Journal header limits reached or header out-of-date, rotating.", f->path);
+
+                server_rotate_journal(s, TAKE_PTR(f), uid);
+                server_vacuum(s, /* verbose = */ false);
                 vacuumed = true;
 
                 f = find_journal(s, uid);
@@ -705,8 +736,8 @@ static void write_to_journal(Server *s, uid_t uid, struct iovec *iovec, size_t n
                 return;
         }
 
-        server_rotate(s);
-        server_vacuum(s, false);
+        server_rotate_journal(s, TAKE_PTR(f), uid);
+        server_vacuum(s, /* verbose = */ false);
 
         f = find_journal(s, uid);
         if (!f)
@@ -1028,8 +1059,8 @@ int server_flush_to_var(Server *s, bool require_flag_file) {
                         goto finish;
                 }
 
-                server_rotate(s);
-                server_vacuum(s, false);
+                server_rotate_journal(s, s->system_journal, /* uid = */ 0);
+                server_vacuum(s, /* verbose = */ false);
 
                 if (!s->system_journal) {
                         log_notice("Didn't flush runtime journal since rotation of system journal wasn't successful.");

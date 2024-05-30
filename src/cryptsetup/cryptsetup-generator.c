@@ -525,10 +525,44 @@ static int parse_proc_cmdline_item(const char *key, const char *value, void *dat
         return 0;
 }
 
+static int add_crypttab_device(const char *name, const char *device,  const char *keyspec, const char *options) {
+        _cleanup_free_ char *keyfile = NULL, *keydev = NULL;
+        crypto_device *d = NULL;
+        char *uuid;
+        int r;
+
+        uuid = startswith(device, "UUID=");
+        if (!uuid)
+                uuid = path_startswith(device, "/dev/disk/by-uuid/");
+        if (!uuid)
+                uuid = startswith(name, "luks-");
+        if (uuid)
+                d = hashmap_get(arg_disks, uuid);
+
+        if (arg_whitelist && !d) {
+                log_info("Not creating device '%s' because it was not specified on the kernel command line.", name);
+                return 0;
+        }
+
+        r = split_keyspec(keyspec, &keyfile, &keydev);
+        if (r < 0)
+                return r;
+
+        r = create_disk(name, device, keyfile, keydev, (d && d->options) ? d->options : options);
+        if (r < 0)
+                return r;
+
+        if (d)
+                d->create = false;
+
+        return 0;
+}
+
 static int add_crypttab_devices(void) {
         struct stat st;
         unsigned crypttab_line = 0;
         _cleanup_fclose_ FILE *f = NULL;
+        int r;
 
         if (!arg_read_crypttab)
                 return 0;
@@ -548,10 +582,9 @@ static int add_crypttab_devices(void) {
         }
 
         for (;;) {
-                int r, k;
-                char line[LINE_MAX], *l, *uuid;
-                crypto_device *d = NULL;
-                _cleanup_free_ char *name = NULL, *device = NULL, *keydev = NULL, *keyfile = NULL, *keyspec = NULL, *options = NULL;
+                char line[LINE_MAX], *l;
+                _cleanup_free_ char *name = NULL, *device = NULL, *keyspec = NULL, *options = NULL;
+                int k;
 
                 if (!fgets(line, sizeof(line), f))
                         break;
@@ -568,29 +601,9 @@ static int add_crypttab_devices(void) {
                         continue;
                 }
 
-                uuid = startswith(device, "UUID=");
-                if (!uuid)
-                        uuid = path_startswith(device, "/dev/disk/by-uuid/");
-                if (!uuid)
-                        uuid = startswith(name, "luks-");
-                if (uuid)
-                        d = hashmap_get(arg_disks, uuid);
-
-                if (arg_whitelist && !d) {
-                        log_info("Not creating device '%s' because it was not specified on the kernel command line.", name);
-                        continue;
-                }
-
-                r = split_keyspec(keyspec, &keyfile, &keydev);
+                r = add_crypttab_device(name, device, keyspec, options);
                 if (r < 0)
                         return r;
-
-                r = create_disk(name, device, keyfile, keydev, (d && d->options) ? d->options : options);
-                if (r < 0)
-                        return r;
-
-                if (d)
-                        d->create = false;
         }
 
         return 0;

@@ -562,7 +562,7 @@ static int add_crypttab_devices(void) {
         struct stat st;
         unsigned crypttab_line = 0;
         _cleanup_fclose_ FILE *f = NULL;
-        int r;
+        int r, ret = 0;
 
         if (!arg_read_crypttab)
                 return 0;
@@ -602,11 +602,11 @@ static int add_crypttab_devices(void) {
                 }
 
                 r = add_crypttab_device(name, device, keyspec, options);
-                if (r < 0)
-                        return r;
+                if (r < 0 && ret >= 0)
+                        ret = r;
         }
 
-        return 0;
+        return ret;
 }
 
 static int add_proc_cmdline_devices(void) {

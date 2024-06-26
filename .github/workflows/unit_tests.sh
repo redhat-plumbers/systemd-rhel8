@@ -138,6 +138,9 @@ for phase in "${PHASES[@]}"; do
 
             # Beautiful workaround for Fedora's version of Docker
             sleep 1
+            # FIXME?: Point C8S repos to the Vault, since C8S is EOL
+            $DOCKER_EXEC bash -xec "sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*"
+            $DOCKER_EXEC bash -xec "sed -i 's|#baseurl=http://mirror.centos.org|baseurl=https://vault.centos.org|g' /etc/yum.repos.d/CentOS-*"
             $DOCKER_EXEC dnf makecache
             # Install and enable EPEL
             $DOCKER_EXEC dnf -q -y install epel-release dnf-utils "${ADDITIONAL_DEPS[@]}"

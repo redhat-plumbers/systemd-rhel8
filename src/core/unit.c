@@ -3115,6 +3115,43 @@ int unit_load_related_unit(Unit *u, const char *type, Unit **_found) {
         return r;
 }
 
+static int signal_name_owner_changed_install_handler(sd_bus_message *message, void *userdata, sd_bus_error *error) {
+        Unit *u = userdata;
+        const sd_bus_error *e;
+        int r;
+
+        assert(message);
+        assert(u);
+
+        e = sd_bus_message_get_error(message);
+        if (!e) {
+                log_unit_debug(u, "Successfully installed NameOwnerChanged signal match.");
+                return 0;
+        }
+
+        r = sd_bus_error_get_errno(e);
+        log_unit_error_errno(u, r,
+                             "Unexpected error response on installing NameOwnerChanged signal match: %s",
+                             bus_error_message(e, r));
+
+        /* If we failed to install NameOwnerChanged signal, also unref the bus slot of GetNameOwner(). */
+        u->match_bus_slot = sd_bus_slot_unref(u->match_bus_slot);
+
+        if (UNIT_VTABLE(u)->bus_name_owner_change) {
+                /* HACK: I'd like to avoid backporting fc67a943d9 so I have to deal with former
+                   vtable->bus_name_owner_change() signature, i.e. provide either old_owner or new_owner and bus_name.
+                   Also, vtable->bus_name_owner_change() is implemented only for services. */
+                Service *s = SERVICE(u);
+
+                assert(u->type == UNIT_SERVICE);
+
+                if (s->bus_name_good)
+                        UNIT_VTABLE(u)->bus_name_owner_change(u, s->bus_name, s->bus_name_owner, NULL);
+        }
+
+        return 0;
+}
+
 static int signal_name_owner_changed(sd_bus_message *message, void *userdata, sd_bus_error *error) {
         const char *name, *old_owner, *new_owner;
         Unit *u = userdata;
@@ -3155,7 +3192,7 @@ int unit_install_bus_match(Unit *u, sd_bus *bus, const char *name) {
                          "member='NameOwnerChanged',"
                          "arg0='", name, "'");
 
-        return sd_bus_add_match_async(bus, &u->match_bus_slot, match, signal_name_owner_changed, NULL, u);
+        return sd_bus_add_match_async(bus, &u->match_bus_slot, match, signal_name_owner_changed, signal_name_owner_changed_install_handler, u);
 }
 
 int unit_watch_bus_name(Unit *u, const char *name) {

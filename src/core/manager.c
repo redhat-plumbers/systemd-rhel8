@@ -1658,10 +1658,6 @@ int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
         /* Connect to the bus if we are good for it */
         manager_setup_bus(m);
 
-        /* Now that we are connected to all possible busses, let's deserialize who is tracking us. */
-        (void) bus_track_coldplug(m->api_bus, &m->subscribed, false, m->subscribed_as_strv);
-        m->subscribed_as_strv = strv_free(m->subscribed_as_strv);
-
         /* Third, fire things up! */
         manager_coldplug(m);
 

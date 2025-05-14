@@ -20,6 +20,7 @@ struct DnsQueryCandidate {
         DnsSearchDomain *search_domain;
 
         int error_code;
+        uint64_t generation;
         Set *transactions;
 
         LIST_FIELDS(DnsQueryCandidate, candidates_by_query);

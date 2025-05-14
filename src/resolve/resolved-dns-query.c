@@ -152,6 +152,8 @@ static int dns_query_candidate_go(DnsQueryCandidate *c) {
 
         c->query->block_ready++;
 
+        uint64_t generation = c->generation;
+
         /* Start the transactions that are not started yet */
         SET_FOREACH(t, c->transactions, i) {
                 if (t->state != DNS_TRANSACTION_NULL)
@@ -165,6 +167,13 @@ static int dns_query_candidate_go(DnsQueryCandidate *c) {
                 if (r == 0)
                         /* A transaction is complete. */
                         notify = true;
+
+                if (c->generation != generation)
+                        /* The transaction has been completed, and dns_transaction_complete() ->
+                         * dns_query_candidate_notify() has been already called. Moreover, the query
+                         * candidate has been regenerated, and the query should be already restarted.
+                         * Let's exit from the loop now. */
+                        return 0;
 
                 n++;
         }
@@ -256,6 +265,8 @@ static int dns_query_candidate_setup_transactions(DnsQueryCandidate *c) {
         assert(c);
 
         dns_query_candidate_stop(c);
+
+        c->generation++;
 
         question = dns_query_question_for_protocol(c->query, c->scope->protocol);
 

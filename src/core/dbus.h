@@ -19,7 +19,7 @@ void bus_done(Manager *m);
 int bus_fdset_add_all(Manager *m, FDSet *fds);
 
 void bus_track_serialize(sd_bus_track *t, FILE *f, const char *prefix);
-int bus_track_coldplug(Manager *m, sd_bus_track **t, bool recursive, char **l);
+int bus_track_coldplug(sd_bus *bus, sd_bus_track **t, bool recursive, char **l);
 
 int manager_enqueue_sync_bus_names(Manager *m);
 

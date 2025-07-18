@@ -1348,6 +1348,9 @@ Manager* manager_free(Manager *m) {
         free(m->switch_root);
         free(m->switch_root_init);
 
+        sd_bus_track_unref(m->subscribed);
+        strv_free(m->deserialized_subscribed);
+
         rlimit_free_all(m->rlimit);
 
         assert(hashmap_isempty(m->units_requiring_mounts_for));
@@ -1656,7 +1659,7 @@ int manager_startup(Manager *m, FILE *serialization, FDSet *fds) {
         manager_setup_bus(m);
 
         /* Now that we are connected to all possible busses, let's deserialize who is tracking us. */
-        (void) bus_track_coldplug(m, &m->subscribed, false, m->deserialized_subscribed);
+        (void) bus_track_coldplug(m->api_bus, &m->subscribed, false, m->deserialized_subscribed);
         m->deserialized_subscribed = strv_free(m->deserialized_subscribed);
 
         /* Third, fire things up! */

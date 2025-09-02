@@ -30,6 +30,12 @@
 
 typedef void (*test_function_t)(Manager *m);
 
+static int cld_dumped_to_killed(int code) {
+        /* Depending on the system, seccomp version, … some signals might result in dumping, others in plain
+         * killing. Let's ignore the difference here, and map both cases to CLD_KILLED */
+        return code == CLD_DUMPED ? CLD_KILLED : code;
+}
+
 static void wait_for_service_finish(Manager *m, Unit *unit) {
         Service *service = NULL;
         usec_t ts;
@@ -73,7 +79,7 @@ static void check_main_result(const char *func, Manager *m, Unit *unit, int stat
                           service->main_exec_status.status, status_expected);
                 abort();
         }
-        if (service->main_exec_status.code != code_expected) {
+        if (cld_dumped_to_killed(service->main_exec_status.code) != cld_dumped_to_killed(code_expected)) {
                 log_error("%s: %s: exit code %d, expected %d",
                           func, unit->id,
                           service->main_exec_status.code, code_expected);

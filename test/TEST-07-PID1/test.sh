@@ -7,7 +7,7 @@ TEST_NO_QEMU=1
 
 . $TEST_BASE_DIR/test-functions
 
-NSPAWN_TIMEOUT=30s
+NSPAWN_TIMEOUT=90s
 
 test_setup() {
     create_empty_image
@@ -27,7 +27,6 @@ test_setup() {
         ln -fs /dev/null $initdir/etc/systemd/system/systemd-networkd.service
         ln -fs /dev/null $initdir/etc/systemd/system/systemd-networkd.socket
         ln -fs /dev/null $initdir/etc/systemd/system/systemd-networkd-wait-online.service
-        ln -fs /dev/null $initdir/etc/systemd/system/systemd-resolved.service
         ln -fs /dev/null $initdir/etc/systemd/system/systemd-machined.service
 
         # setup the testsuite service

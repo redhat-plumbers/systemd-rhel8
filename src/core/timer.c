@@ -821,7 +821,7 @@ static void timer_timezone_change(Unit *u) {
         timer_enter_waiting(t, false);
 }
 
-static int timer_can_start(Unit *u) {
+static int timer_test_startable(Unit *u) {
         Timer *t = TIMER(u);
         int r;
 
@@ -833,7 +833,7 @@ static int timer_can_start(Unit *u) {
                 return r;
         }
 
-        return 1;
+        return true;
 }
 
 static const char* const timer_base_table[_TIMER_BASE_MAX] = {
@@ -891,5 +891,5 @@ const UnitVTable timer_vtable = {
         .bus_set_property = bus_timer_set_property,
 
         .can_transient = true,
-        .can_start = timer_can_start,
+        .test_startable = timer_test_startable,
 };

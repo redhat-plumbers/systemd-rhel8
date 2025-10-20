@@ -2367,17 +2367,6 @@ static int service_start(Unit *u) {
 
         assert(s);
 
-        /* We cannot fulfill this request right now, try again later
-         * please! */
-        if (IN_SET(s->state,
-                   SERVICE_STOP, SERVICE_STOP_SIGABRT, SERVICE_STOP_SIGTERM, SERVICE_STOP_SIGKILL, SERVICE_STOP_POST,
-                   SERVICE_FINAL_SIGTERM, SERVICE_FINAL_SIGKILL))
-                return -EAGAIN;
-
-        /* Already on it! */
-        if (IN_SET(s->state, SERVICE_CONDITION, SERVICE_START_PRE, SERVICE_START, SERVICE_START_POST))
-                return 0;
-
         /* A service that will be restarted must be stopped first to
          * trigger BindsTo and/or OnFailure dependencies. If a user
          * does not want to wait for the holdoff time to elapse, the
@@ -4077,11 +4066,18 @@ static bool service_needs_console(Unit *u) {
                       SERVICE_FINAL_SIGKILL);
 }
 
-static int service_can_start(Unit *u) {
+static int service_test_startable(Unit *u) {
         Service *s = SERVICE(u);
         int r;
 
         assert(s);
+
+        /* First check the state, and do not increment start limit counter if the service cannot start due to
+         * that e.g. it is already being started. Note, the service states mapped to UNIT_ACTIVE,
+         * UNIT_RELOADING, and UNIT_DEACTIVATING are already filtered in
+         * unit_start(). Hence, here we only need to check states that mapped to UNIT_ACTIVATING. */
+        if (IN_SET(s->state, SERVICE_CONDITION, SERVICE_START_PRE, SERVICE_START, SERVICE_START_POST))
+                return false;
 
         /* Make sure we don't enter a busy loop of some kind. */
         r = unit_test_start_limit(u);
@@ -4090,7 +4086,7 @@ static int service_can_start(Unit *u) {
                 return r;
         }
 
-        return 1;
+        return true;
 }
 
 static const char* const service_restart_table[_SERVICE_RESTART_MAX] = {
@@ -4235,5 +4231,5 @@ const UnitVTable service_vtable = {
                 },
         },
 
-        .can_start = service_can_start,
+        .test_startable = service_test_startable,
 };

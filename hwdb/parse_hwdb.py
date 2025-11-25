@@ -34,7 +34,7 @@ try:
                            LineStart, LineEnd,
                            OneOrMore, Combine, Or, Optional, Suppress, Group,
                            nums, alphanums, printables,
-                           stringEnd, pythonStyleComment, QuotedString,
+                           stringEnd, pythonStyleComment,
                            ParseBaseException)
 except ImportError:
     print('pyparsing is not available')
@@ -56,13 +56,13 @@ EOL = LineEnd().suppress()
 EMPTYLINE = LineEnd()
 COMMENTLINE = pythonStyleComment + EOL
 INTEGER = Word(nums)
-STRING =  QuotedString('"')
 REAL = Combine((INTEGER + Optional('.' + Optional(INTEGER))) ^ ('.' + INTEGER))
 SIGNED_REAL = Combine(Optional(Word('-+')) + REAL)
 UDEV_TAG = Word(string.ascii_uppercase, alphanums + '_')
 
 TYPES = {'mouse':    ('usb', 'bluetooth', 'ps2', '*'),
          'evdev':    ('name', 'atkbd', 'input'),
+         'fb':       ('pci'),
          'id-input': ('modalias'),
          'touchpad': ('i8042', 'rmi', 'bluetooth', 'usb'),
          'joystick': ('i8042', 'rmi', 'bluetooth', 'usb'),
@@ -93,7 +93,8 @@ def hwdb_grammar():
     matchline = (matchline_typed | matchline_general) + EOL
 
     propertyline = (White(' ', exact=1).suppress() +
-                    Combine(UDEV_TAG - '=' - Word(alphanums + '_=:@*.!-;, "') - Optional(pythonStyleComment)) +
+                    Combine(UDEV_TAG - '=' - Optional(Word(alphanums + '_=:@*.!-;, "'))
+                            - Optional(pythonStyleComment)) +
                     EOL)
     propertycomment = White(' ', exact=1) + pythonStyleComment + EOL
 
@@ -113,6 +114,7 @@ def property_grammar():
     dpi_setting = (Optional('*')('DEFAULT') + INTEGER('DPI') + Suppress('@') + INTEGER('HZ'))('SETTINGS*')
     mount_matrix_row = SIGNED_REAL + ',' + SIGNED_REAL + ',' + SIGNED_REAL
     mount_matrix = (mount_matrix_row + ';' + mount_matrix_row + ';' + mount_matrix_row)('MOUNT_MATRIX')
+    xkb_setting = Optional(Word(alphanums + '+-/@._'))
 
     props = (('MOUSE_DPI', Group(OneOrMore(dpi_setting))),
              ('MOUSE_WHEEL_CLICK_ANGLE', INTEGER),
@@ -139,12 +141,14 @@ def property_grammar():
              ('POINTINGSTICK_CONST_ACCEL', REAL),
              ('ID_INPUT_JOYSTICK_INTEGRATION', Or(('internal', 'external'))),
              ('ID_INPUT_TOUCHPAD_INTEGRATION', Or(('internal', 'external'))),
-             ('XKB_FIXED_LAYOUT', STRING),
-             ('XKB_FIXED_VARIANT', STRING),
+             ('XKB_FIXED_LAYOUT', xkb_setting),
+             ('XKB_FIXED_VARIANT', xkb_setting),
+             ('XKB_FIXED_MODEL', xkb_setting),
              ('KEYBOARD_LED_NUMLOCK', Literal('0')),
              ('KEYBOARD_LED_CAPSLOCK', Literal('0')),
              ('ACCEL_MOUNT_MATRIX', mount_matrix),
              ('ACCEL_LOCATION', Or(('display', 'base'))),
+             ('ID_TAG_MASTER_OF_SEAT', Literal('1')),
             )
     fixed_props = [Literal(name)('NAME') - Suppress('=') - val('VALUE')
                    for name, val in props]

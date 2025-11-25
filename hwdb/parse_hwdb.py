@@ -70,13 +70,28 @@ TYPES = {'mouse':    ('usb', 'bluetooth', 'ps2', '*'),
          'sensor':   ('modalias', ),
         }
 
+# Patterns that are used to set general properties on a device
+GENERAL_MATCHES = {'acpi',
+                   'bluetooth',
+                   'usb',
+                   'pci',
+                   'sdio',
+                   'vmbus',
+                   'OUI',
+                   }
+
+
 @lru_cache()
 def hwdb_grammar():
     ParserElement.setDefaultWhitespaceChars('')
 
     prefix = Or(category + ':' + Or(conn) + ':'
                 for category, conn in TYPES.items())
-    matchline = Combine(prefix + Word(printables + ' ' + '®')) + EOL
+
+    matchline_typed = Combine(prefix + Word(printables + ' ' + '®'))
+    matchline_general = Combine(Or(GENERAL_MATCHES) + ':' + Word(printables))
+    matchline = (matchline_typed | matchline_general) + EOL
+
     propertyline = (White(' ', exact=1).suppress() +
                     Combine(UDEV_TAG - '=' - Word(alphanums + '_=:@*.!-;, "') - Optional(pythonStyleComment)) +
                     EOL)
@@ -104,6 +119,7 @@ def property_grammar():
              ('MOUSE_WHEEL_CLICK_ANGLE_HORIZONTAL', INTEGER),
              ('MOUSE_WHEEL_CLICK_COUNT', INTEGER),
              ('MOUSE_WHEEL_CLICK_COUNT_HORIZONTAL', INTEGER),
+             ('ID_AUTOSUSPEND', Literal('1')),
              ('ID_INPUT', Literal('1')),
              ('ID_INPUT_ACCELEROMETER', Literal('1')),
              ('ID_INPUT_JOYSTICK', Literal('1')),

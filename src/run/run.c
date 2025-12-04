@@ -415,13 +415,13 @@ static int parse_argv(int argc, char *argv[]) {
                 return -EINVAL;
         }
 
-        if (arg_user && arg_transport == BUS_TRANSPORT_REMOTE) {
-                log_error("Execution in user context is not supported on remote systems.");
+        if (arg_user && arg_transport != BUS_TRANSPORT_LOCAL) {
+                log_error("Execution in user context is not supported on non-local systems.");
                 return -EINVAL;
         }
 
-        if (arg_scope && arg_transport == BUS_TRANSPORT_REMOTE) {
-                log_error("Scope execution is not supported on remote systems.");
+        if (arg_scope && arg_transport != BUS_TRANSPORT_LOCAL) {
+                log_error("Scope execution is not supported on non-local systems.");
                 return -EINVAL;
         }
 
@@ -1495,7 +1495,7 @@ int main(int argc, char* argv[]) {
 
         /* If --wait is used connect via the bus, unconditionally, as ref/unref is not supported via the limited direct
          * connection */
-        if (arg_wait || arg_stdio != ARG_STDIO_NONE || (arg_user && arg_transport != BUS_TRANSPORT_LOCAL))
+        if (arg_wait || arg_stdio != ARG_STDIO_NONE)
                 r = bus_connect_transport(arg_transport, arg_host, arg_user, &bus);
         else
                 r = bus_connect_transport_systemd(arg_transport, arg_host, arg_user, &bus);

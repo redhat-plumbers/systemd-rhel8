@@ -103,6 +103,7 @@
 #include "string-util.h"
 #include "udev.h"
 #include "udev-util.h"
+#include "utf8.h"
 
 #define ONBOARD_14BIT_INDEX_MAX ((1U << 14) - 1)
 #define ONBOARD_16BIT_INDEX_MAX ((1U << 16) - 1)
@@ -374,6 +375,10 @@ static int dev_pci_onboard(struct udev_device *dev, struct netnames *names) {
 
         /* kernel provided front panel port name for multiple port PCI device */
         port_name = udev_device_get_sysattr_value(dev, "phys_port_name");
+        if (port_name && (!utf8_is_valid(port_name) || string_has_cc(port_name, /* ok= */ NULL))) {
+                log_debug("Invalid phys_port_name");
+                return -EINVAL;
+        }
 
         s = names->pci_onboard;
         l = sizeof(names->pci_onboard);
@@ -464,6 +469,10 @@ static int dev_pci_slot(struct udev_device *dev, struct netnames *names) {
 
         /* kernel provided front panel port name for multiple port PCI device */
         port_name = udev_device_get_sysattr_value(dev, "phys_port_name");
+        if (port_name && (!utf8_is_valid(port_name) || string_has_cc(port_name, /* ok= */ NULL))) {
+                log_debug("Invalid phys_port_name");
+                return -EINVAL;
+        }
 
         /* compose a name based on the raw kernel's PCI bus, slot numbers */
         s = names->pci_path;

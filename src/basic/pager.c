@@ -44,6 +44,22 @@ _noreturn_ static void pager_fallback(void) {
         _exit(EXIT_SUCCESS);
 }
 
+static bool running_with_escalated_privileges(void) {
+        int r;
+
+        if (getenv("SUDO_UID"))
+                return true;
+
+        uid_t uid;
+        r = sd_pid_get_owner_uid(0, &uid);
+        if (r < 0) {
+                log_debug_errno(r, "sd_pid_get_owner_uid() failed, enabling pager secure mode: %m");
+                return true;
+        }
+
+        return uid != geteuid();
+}
+
 int pager_open(bool no_pager, bool jump_to_end) {
         _cleanup_close_pair_ int fd[2] = { -1, -1 };
         const char *pager;
@@ -113,16 +129,9 @@ int pager_open(bool no_pager, bool jump_to_end) {
                  * know to be good. */
                 int use_secure_mode = getenv_bool("SYSTEMD_PAGERSECURE");
                 bool trust_pager = use_secure_mode >= 0;
-                if (use_secure_mode == -ENXIO) {
-                        uid_t uid;
-
-                        r = sd_pid_get_owner_uid(0, &uid);
-                        if (r < 0)
-                                log_debug_errno(r, "sd_pid_get_owner_uid() failed, enabling pager secure mode: %m");
-
-                        use_secure_mode = r < 0 || uid != geteuid();
-
-                } else if (use_secure_mode < 0) {
+                if (use_secure_mode == -ENXIO)
+                        use_secure_mode = running_with_escalated_privileges();
+                else if (use_secure_mode < 0) {
                         log_warning_errno(use_secure_mode, "Unable to parse $SYSTEMD_PAGERSECURE, assuming true: %m");
                         use_secure_mode = true;
                 }

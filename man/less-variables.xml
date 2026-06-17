@@ -43,9 +43,14 @@
       false, disabled. If <varname>$SYSTEMD_PAGERSECURE</varname> is not set at all, secure mode is enabled
       if the effective UID is not the same as the owner of the login session, see <citerefentry
       project='man-pages'><refentrytitle>geteuid</refentrytitle><manvolnum>2</manvolnum></citerefentry> and
-      <citerefentry><refentrytitle>sd_pid_get_owner_uid</refentrytitle><manvolnum>3</manvolnum></citerefentry>.
+      <citerefentry><refentrytitle>sd_pid_get_owner_uid</refentrytitle><manvolnum>3</manvolnum></citerefentry>,
+      or when running under
+      <citerefentry><refentrytitle>sudo</refentrytitle><manvolnum>8</manvolnum></citerefentry> or similar
+      tools (<varname>$SUDO_UID</varname> is set).
       In secure mode, <option>LESSSECURE=1</option> will be set when invoking the pager, and the pager shall
-      disable commands that open or create new files or start new subprocesses. When
+      disable commands that open or create new files or start new subprocesses. Note that this autodetection
+      only covers the most common mechanisms to elevate privileges and is intended as convenience. It is
+      recommended to explicitly set <varname>$SYSTEMD_PAGERSECURE</varname> or disable the pager. When
       <varname>$SYSTEMD_PAGERSECURE</varname> is not set at all, pagers which are not known to implement
       secure mode will not be used. (Currently only
       <citerefentry><refentrytitle>less</refentrytitle><manvolnum>1</manvolnum></citerefentry> implements

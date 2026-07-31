@@ -540,6 +540,11 @@ static int mount_add_non_exec_dependencies(Mount *m) {
         int r;
         assert(m);
 
+        /* We may be called due to this mount appearing in /proc/self/mountinfo, hence we clear all existing
+         * dependencies that were initialized from the unit file but whose final value really depends on the
+         * content of /proc/self/mountinfo. Some (such as m->where) might have become stale now. */
+        unit_remove_dependencies(UNIT(m), UNIT_DEPENDENCY_MOUNTINFO_IMPLICIT);
+
         /* Adds in all dependencies directly responsible for ordering the mount, as opposed to dependencies
          * resulting from the ExecContext and such. */
 
@@ -1498,8 +1503,7 @@ static int mount_setup_existing_unit(
                 MountSetupFlags *flags) {
 
         MountParameters *p;
-        bool load_extras = false;
-        int r1, r2, r3;
+        int r1, r2, r3, r;
 
         assert(u);
         assert(flags);
@@ -1525,33 +1529,20 @@ static int mount_setup_existing_unit(
 
         MOUNT(u)->from_proc_self_mountinfo = true;
 
-        if (!mount_is_extrinsic(MOUNT(u)) && mount_is_network(p)) {
-                /* _netdev option may have shown up late, or on a
-                 * remount. Add remote-fs dependencies, even though
-                 * local-fs ones may already be there.
-                 *
-                 * Note: due to a current limitation (we don't track
-                 * in the dependency "Set*" objects who created a
-                 * dependency), we can only add deps, never lose them,
-                 * until the next full daemon-reload. */
-                unit_add_dependency_by_name(u, UNIT_BEFORE, SPECIAL_REMOTE_FS_TARGET, NULL, true, UNIT_DEPENDENCY_MOUNTINFO_IMPLICIT);
-                load_extras = true;
-        }
-
         if (u->load_state == UNIT_NOT_FOUND) {
                 u->load_state = UNIT_LOADED;
                 u->load_error = 0;
 
-                /* Load in the extras later on, after we
-                 * finished initialization of the unit */
-
-                /* FIXME: since we're going to load the unit later on, why setting load_extras=true ? */
-                load_extras = true;
                 flags->just_changed = true;
         }
 
-        if (load_extras)
-                return mount_add_non_exec_dependencies(MOUNT(u));
+        if (flags->just_changed) {
+                /* If things changed, then make sure that all deps are regenerated. Let's
+                 * first remove all automatic deps, and then add in the new ones. */
+                r = mount_add_non_exec_dependencies(MOUNT(u));
+                if (r < 0)
+                        return r;
+        }
 
         return 0;
 }

@@ -805,57 +805,75 @@ static int next_beyond_location(sd_journal *j, JournalFile *f, direction_t direc
 }
 
 static int real_journal_next(sd_journal *j, direction_t direction) {
-        JournalFile *new_file = NULL;
         unsigned i, n_files;
         const void **files;
-        Object *o;
         int r;
 
         assert_return(j, -EINVAL);
         assert_return(!journal_pid_changed(j), -ECHILD);
 
-        r = iterated_cache_get(j->files_cache, NULL, &files, &n_files);
-        if (r < 0)
-                return r;
+        for (;;) {
+                JournalFile *new_file = NULL;
+                Object *o;
 
-        for (i = 0; i < n_files; i++) {
-                JournalFile *f = (JournalFile *)files[i];
-                bool found;
+                r = iterated_cache_get(j->files_cache, NULL, &files, &n_files);
+                if (r < 0)
+                        return r;
 
-                r = next_beyond_location(j, f, direction);
-                if (r < 0) {
-                        log_debug_errno(r, "Can't iterate through %s, ignoring: %m", f->path);
-                        remove_file_real(j, f);
-                        continue;
-                } else if (r == 0) {
-                        f->location_type = LOCATION_TAIL;
-                        continue;
+                for (i = 0; i < n_files; i++) {
+                        JournalFile *f = (JournalFile *)files[i];
+                        bool found;
+
+                        r = next_beyond_location(j, f, direction);
+                        if (r < 0) {
+                                log_debug_errno(r, "Can't iterate through %s, ignoring: %m", f->path);
+                                remove_file_real(j, f);
+                                continue;
+                        } else if (r == 0) {
+                                f->location_type = LOCATION_TAIL;
+                                continue;
+                        }
+
+                        if (!new_file)
+                                found = true;
+                        else {
+                                int k;
+
+                                k = journal_file_compare_locations(f, new_file);
+
+                                found = direction == DIRECTION_DOWN ? k < 0 : k > 0;
+                        }
+
+                        if (found)
+                                new_file = f;
                 }
 
                 if (!new_file)
-                        found = true;
-                else {
-                        int k;
+                        return 0;
 
-                        k = journal_file_compare_locations(f, new_file);
+                r = journal_file_move_to_object(new_file, OBJECT_ENTRY, new_file->current_offset, &o);
+                if (r < 0) {
+                        /* Vacuuming can unlink and deallocate the file we just picked, which surfaces as
+                         * one of these errors. Confirm the file is really gone before dropping it: -EIDRM
+                         * already comes from the journal_file_fstat() inside the lookup, the others need a
+                         * stat of our own. */
+                        if (!IN_SET(r, -EADDRNOTAVAIL, -EBADMSG, -EIDRM, -EIO))
+                                return r;
+                        if (r != -EIDRM && journal_file_fstat(new_file) != -EIDRM)
+                                return r;
 
-                        found = direction == DIRECTION_DOWN ? k < 0 : k > 0;
+                        log_debug_errno(r, "Can't read selected entry from removed journal file '%s', ignoring: %m",
+                                        new_file->path);
+                        remove_file_real(j, new_file);
+
+                        /* Removing the selected file guarantees that the next iteration makes progress. */
+                        continue;
                 }
 
-                if (found)
-                        new_file = f;
+                set_location(j, new_file, o);
+
+                return 1;
         }
-
-        if (!new_file)
-                return 0;
-
-        r = journal_file_move_to_object(new_file, OBJECT_ENTRY, new_file->current_offset, &o);
-        if (r < 0)
-                return r;
-
-        set_location(j, new_file, o);
-
-        return 1;
 }
 
 _public_ int sd_journal_next(sd_journal *j) {

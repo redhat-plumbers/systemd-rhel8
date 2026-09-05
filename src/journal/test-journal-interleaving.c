@@ -6,14 +6,22 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#if HAVE_VALGRIND_VALGRIND_H
+#include <valgrind/valgrind.h>
+#endif
+
 #include "sd-journal.h"
 
 #include "alloc-util.h"
+#include "fd-util.h"
 #include "journal-file.h"
+#include "journal-internal.h"
 #include "journal-vacuum.h"
 #include "log.h"
 #include "parse-util.h"
 #include "rm-rf.h"
+#include "sigbus.h"
+#include "string-util.h"
 #include "util.h"
 
 /* This program tests skipping around in a multi-file journal.
@@ -190,6 +198,122 @@ static void test_skip(void (*setup)(void)) {
         puts("------------------------------------------------------------");
 }
 
+/* Read the first entry so that two.journal becomes the next candidate with LOCATION_SEEK, then simulate
+ * vacuuming removing it while it is still open and mapped. */
+static void test_remove_unlinked_selected_file_one(bool truncate, bool refresh_stat) {
+        char t[] = "/tmp/journal-unlinked-XXXXXX";
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        _cleanup_close_ int fd = -1;
+        uint8_t type = OBJECT_UNUSED;
+        JournalFile *f;
+        struct stat st;
+
+        assert_se(!refresh_stat || truncate);
+
+        assert_se(mkdtemp(t));
+        assert_se(chdir(t) >= 0);
+        setup_interleaved();
+
+        assert_ret(sd_journal_open_directory(&j, t, 0));
+        assert_ret(sd_journal_seek_head(j));
+        assert_se(sd_journal_next(j) > 0);
+        test_check_number(j, 1);
+
+        assert_se(f = ordered_hashmap_get(j->files, strjoina(t, "/two.journal")));
+        assert_se(f->location_type == LOCATION_SEEK);
+
+        if (truncate && !refresh_stat)
+                sigbus_install();
+
+        /* Keep the file open and mapped while the name goes away, like vacuuming does. */
+        assert_se((fd = open("two.journal", O_WRONLY|O_CLOEXEC)) >= 0);
+        assert_se(unlink("two.journal") >= 0);
+
+        if (truncate) {
+                /* The lookup only stats the file when the selected entry falls outside the cached size, and
+                 * journal_file_fstat() then reports the unlinked file as -EIDRM. Truncating to the selected
+                 * offset and refreshing the stat takes that path. Truncating the whole file without
+                 * refreshing leaves the cached size stale, so touching the mapping raises SIGBUS and the
+                 * lookup fails with -EIO. */
+                assert_se(ftruncate(fd, refresh_stat ? f->current_offset : 0) >= 0);
+                if (refresh_stat)
+                        assert_se(journal_file_fstat(f) == -EIDRM);
+                else {
+                        assert_se(*(volatile uint8_t*) &f->header->state == STATE_OFFLINE);
+                        assert_se(mmap_cache_got_sigbus(f->mmap, f->cache_fd));
+                }
+        } else {
+                /* Emulate a deallocated range, which reads back as zeroes, by zeroing the selected entry's
+                 * object type. */
+                assert_se(pwrite(fd, &type, sizeof(type), f->current_offset) == (ssize_t) sizeof(type));
+                assert_se(fsync(fd) >= 0);
+        }
+
+        assert_se(fstat(f->fd, &st) >= 0);
+        assert_se(st.st_nlink == 0);
+        if (refresh_stat)
+                assert_se((uint64_t) st.st_size == f->current_offset);
+        else if (truncate)
+                assert_se(st.st_size == 0);
+
+        assert_se(sd_journal_next(j) > 0);
+        if (truncate && !refresh_stat)
+                sigbus_reset();
+        test_check_number(j, 3);
+        assert_se(!ordered_hashmap_get(j->files, strjoina(t, "/two.journal")));
+
+        if (arg_keep)
+                log_info("Not removing %s", t);
+        else
+                assert_se(rm_rf(t, REMOVE_ROOT|REMOVE_PHYSICAL) >= 0);
+}
+
+static void test_remove_truncated_unlinked_selected_file(void) {
+#if HAS_FEATURE_ADDRESS_SANITIZER
+        return;
+#endif
+#if HAVE_VALGRIND_VALGRIND_H
+        if (RUNNING_ON_VALGRIND)
+                return;
+#endif
+
+        test_remove_unlinked_selected_file_one(true, false);
+}
+
+/* Corruption in a file that is still linked must stay visible to the caller. Whether libsystemd should
+ * skip such a file, or just the corrupt entry, is a separate question; this only pins today's behaviour. */
+static void test_keep_linked_selected_file_error(void) {
+        char t[] = "/tmp/journal-linked-XXXXXX";
+        _cleanup_(sd_journal_closep) sd_journal *j = NULL;
+        _cleanup_close_ int fd = -1;
+        JournalFile *f;
+        uint8_t type = OBJECT_UNUSED;
+
+        assert_se(mkdtemp(t));
+        assert_se(chdir(t) >= 0);
+        setup_interleaved();
+
+        assert_ret(sd_journal_open_directory(&j, t, 0));
+        assert_ret(sd_journal_seek_head(j));
+        assert_se(sd_journal_next(j) > 0);
+        test_check_number(j, 1);
+
+        assert_se(f = ordered_hashmap_get(j->files, strjoina(t, "/two.journal")));
+        assert_se(f->location_type == LOCATION_SEEK);
+
+        assert_se((fd = open("two.journal", O_WRONLY|O_CLOEXEC)) >= 0);
+        assert_se(pwrite(fd, &type, sizeof(type), f->current_offset) == (ssize_t) sizeof(type));
+        assert_se(fsync(fd) >= 0);
+
+        assert_se(sd_journal_next(j) == -EBADMSG);
+        assert_se(ordered_hashmap_get(j->files, strjoina(t, "/two.journal")));
+
+        if (arg_keep)
+                log_info("Not removing %s", t);
+        else
+                assert_se(rm_rf(t, REMOVE_ROOT|REMOVE_PHYSICAL) >= 0);
+}
+
 static void test_sequence_numbers(void) {
 
         char t[] = "/tmp/journal-seq-XXXXXX";
@@ -284,6 +408,11 @@ int main(int argc, char *argv[]) {
 
         test_skip(setup_sequential);
         test_skip(setup_interleaved);
+
+        test_remove_unlinked_selected_file_one(false, false);
+        test_remove_truncated_unlinked_selected_file();
+        test_remove_unlinked_selected_file_one(true, true);
+        test_keep_linked_selected_file_error();
 
         test_sequence_numbers();
 

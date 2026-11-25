@@ -1767,6 +1767,8 @@ int unit_start(Unit *u) {
         state = unit_active_state(u);
         if (UNIT_IS_ACTIVE_OR_RELOADING(state))
                 return -EALREADY;
+        if (state == UNIT_DEACTIVATING)
+                return -EAGAIN;
 
         /* Units that aren't loaded cannot be started */
         if (u->load_state != UNIT_LOADED)
@@ -1815,10 +1817,11 @@ int unit_start(Unit *u) {
                 return unit_start(following);
         }
 
-        /* Check start rate limiting early so that failure conditions don't cause us to enter a busy loop. */
-        if (UNIT_VTABLE(u)->can_start) {
-                r = UNIT_VTABLE(u)->can_start(u);
-                if (r < 0)
+        /* Check our ability to start early so that ratelimited or already starting/started units don't
+         * cause us to enter a busy loop. */
+        if (UNIT_VTABLE(u)->test_startable) {
+                r = UNIT_VTABLE(u)->test_startable(u);
+                if (r <= 0)
                         return r;
         }
 
